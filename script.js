@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========= FUNÇÕES PRINCIPAIS =========
 function loadNavbarAndInitializeScripts() {
     const navbarPlaceholder = document.getElementById('navbar-placeholder');
-    fetch('_navbar.html')
+    fetch('./_navbar.html')
         .then(response => {
             if (!response.ok) throw new Error(`Erro ao carregar _navbar.html: ${response.statusText}`);
             return response.text();
