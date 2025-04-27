@@ -1,4 +1,3 @@
-
 // Variável global temporária para itens do pedido atual no modal
 let tempOrderItems = [];
 
@@ -48,18 +47,18 @@ function getBilledTablesKey() {
 function checkAccess() {
     const userRole = getUserRole();
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
-    const publicPages = ['index.html', 'forgot_password.html']; // Páginas que não exigem login
+    const publicPages = ['index.html', 'forgot_password.html', 'register.html']; // Páginas que não exigem login - Adicionado register.html
 
     //console.log(`Verificando acesso - Página: ${currentPage}, Perfil: ${userRole}`);
 
     // Se for página pública, permite acesso
     if (publicPages.includes(currentPage)) {
         //console.log("Acesso permitido: Página pública.");
-        // Se já estiver logado e tentar acessar o login, redireciona para o dashboard
-        if (currentPage === 'index.html' && userRole) {
-             console.warn("Usuário logado tentando acessar login. Redirecionando para dashboard...");
+        // Se já estiver logado e tentar acessar o login/registro, redireciona para o dashboard
+        if ((currentPage === 'index.html' || currentPage === 'register.html') && userRole) {
+             console.warn("Usuário logado tentando acessar login/registro. Redirecionando para dashboard...");
              window.location.href = 'admin_dashboard.html'; // Ou página inicial apropriada
-             throw new Error("Redirecionando usuário logado para fora do login."); // Interrompe execução
+             throw new Error("Redirecionando usuário logado para fora do login/registro."); // Interrompe execução
         }
         return; // Permite acesso à página pública
     }
@@ -79,25 +78,12 @@ function checkAccess() {
         kitchen: ['admin_dashboard.html', 'admin_dishes.html', 'admin_orders.html', 'admin_profile.html']
     };
 
-    // Tenta normalizar o nome da página atual (remove nome do repo se presente)
-    let normalizedCurrentPage = currentPage;
-    const pathSegments = window.location.pathname.split('/').filter(Boolean); // Divide e remove vazios
-    if (pathSegments.length > 0) {
-        normalizedCurrentPage = pathSegments[pathSegments.length - 1];
-        // Se for só o nome do repo (sem arquivo), considera como index.html
-        if (!normalizedCurrentPage.includes('.') && pathSegments.length === 1) {
-             normalizedCurrentPage = 'index.html';
-        }
-    }
-    //console.log(`Página normalizada para verificação: ${normalizedCurrentPage}`);
-
-
     // Verifica se o perfil atual tem permissão para a página atual
-    if (allowedPages[userRole] && allowedPages[userRole].includes(normalizedCurrentPage)) {
-        //console.log(`Acesso permitido para perfil '${userRole}' na página '${normalizedCurrentPage}'.`);
+    if (allowedPages[userRole] && allowedPages[userRole].includes(currentPage)) {
+        //console.log(`Acesso permitido para perfil '${userRole}' na página '${currentPage}'.`);
         return; // Permite o acesso
     } else {
-        console.warn(`Acesso BLOQUEADO para perfil '${userRole}' na página '${normalizedCurrentPage}'.`);
+        console.warn(`Acesso BLOQUEADO para perfil '${userRole}' na página '${currentPage}'.`);
         alert('Você não tem permissão para acessar esta página.');
         // Redireciona para uma página padrão (ex: dashboard) ou login
         window.location.href = 'admin_dashboard.html'; // Ou index.html se preferir
@@ -111,109 +97,67 @@ function checkAccess() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM carregado. Iniciando script.");
 
-    // Tenta normalizar o nome da página atual para verificação de acesso
-    let currentPageFile = 'index.html'; // Default
-    const pathSegments = window.location.pathname.split('/').filter(Boolean);
-    if (pathSegments.length > 0) {
-         const lastSegment = pathSegments[pathSegments.length - 1];
-         // Se o último segmento parece um nome de arquivo HTML
-         if (lastSegment.endsWith('.html')) {
-              currentPageFile = lastSegment;
-         }
-         // Se for só o nome do repo (ex: /MesaFacil/), considera index.html
-         else if (pathSegments.length === 1 && !lastSegment.includes('.')) {
-              currentPageFile = 'index.html';
-         }
+    const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+    // Adicionado register.html às páginas públicas
+    const publicPages = ['index.html', 'forgot_password.html', 'register.html'];
+
+    // --- 1. Verificação de Acesso (SEMPRE) ---
+    try {
+        checkAccess(); // Verifica se o usuário pode estar nesta página (pode redirecionar)
+    } catch (error) {
+        console.warn("Redirecionamento devido à verificação de acesso.");
+        // Importante: Interromper a execução do restante do script se checkAccess redirecionar
+        return;
     }
-    console.log(`Página atual detectada como: ${currentPageFile}`);
-
-
-    const publicPages = ['index.html', 'forgot_password.html'];
-
-    // --- 1. Verificação de Acesso (SEMPRE, exceto em páginas públicas) ---
-    if (!publicPages.includes(currentPageFile)) {
-        try {
-            checkAccess(); // Verifica se o usuário pode estar nesta página
-        } catch (error) {
-            console.warn("Redirecionamento devido à verificação de acesso.");
-            // Importante: Interromper a execução do restante do script se checkAccess redirecionar
-            return;
-        }
-    } else {
-         // Para páginas públicas, verifica se já está logado (redireciona do login se já logado)
-         try { checkAccess(); } catch (error) { return; }
-    }
-
 
     // --- 2. Inicialização de Dados (APENAS se for a primeira vez ou dados ausentes) ---
     initializeLocalStorageData(); // Inicializa usuários, mesas, pratos, pedidos FAKE (se não existirem)
 
-    // --- 3. Carregar e Inicializar Navbar (APENAS se o placeholder existir) ---
-    const navbarPlaceholder = document.getElementById('navbar-placeholder');
-    if (navbarPlaceholder) {
-        console.log("Placeholder da Navbar encontrado, carregando navbar...");
-        loadNavbarAndInitializeScripts(); // Carrega navbar E inicializa scripts da página DENTRO dela
+    // --- 3. Inicialização da Página (Navbar já está no HTML) ---
+    if (!publicPages.includes(currentPage)) {
+        // Páginas que REQUEREM login e possuem a navbar embutida
+        console.log("Página de admin detectada. Navbar está embutida. Inicializando scripts...");
+
+        // Inicializa a lógica da navbar VISUAL (toggle, highlight)
+        initializeNavbarLogic();
+        // Ajusta a visibilidade dos itens da navbar com base no perfil
+        adjustNavbarVisibility();
+        // Inicializa a lógica do tema
+        initializeThemeLogic();
+        // Inicializa a lógica de logout
+        initializeLogoutLogic();
+        // Exibe o nome do usuário logado
+        displayLoggedInUser();
+
+        // Inicializa a lógica específica da página ATUAL
+        initializePageSpecificLogic();
+
+        // Remove a classe de pré-carregamento após tudo estar pronto
+        setTimeout(() => {
+            if (document.body) document.body.classList.remove('preload-transition');
+            console.log("Preload transition removida (página admin).");
+        }, 50);
+
     } else {
-        console.log("Placeholder da Navbar NÃO encontrado. Inicializando tema e lógica de página não-admin.");
+        // Páginas públicas (Login, Forgot Password, Register) - Não possuem a navbar principal
+        console.log("Página pública detectada. Inicializando tema e lógica de página específica.");
         initializeThemeLogic(); // Tema funciona mesmo sem navbar completa
-        initializePageSpecificLogic(); // Lógica específica para páginas como login/forgot_password
+        initializePageSpecificLogic(); // Lógica específica para páginas como login/forgot_password/register
         setTimeout(() => {
             if(document.body) document.body.classList.remove('preload-transition');
-            console.log("Preload transition removida (página sem navbar).");
+            console.log("Preload transition removida (página pública).");
         }, 50);
     }
 
 }); // Fim do DOMContentLoaded
 
 // ========= FUNÇÕES PRINCIPAIS =========
-function loadNavbarAndInitializeScripts() {
-    const navbarPlaceholder = document.getElementById('navbar-placeholder');
 
-    // ***** VOLTANDO PARA './_navbar.html' *****
-    // Este caminho assume que _navbar.html está no MESMO diretório
-    // que os arquivos HTML que o estão incluindo.
-    const navbarPath = './_navbar.html';
-    console.log(`Tentando buscar navbar em: ${navbarPath}`);
-
-    fetch(navbarPath)
-        .then(response => {
-            if (!response.ok) {
-                 // Se falhar, JÁ LOGA o erro detalhado
-                 console.error(`Erro ao carregar ${navbarPath}: Status ${response.status} (${response.statusText})`);
-                 // Lança o erro para ser pego pelo .catch()
-                 throw new Error(`Erro ao carregar navbar: Status ${response.status}`);
-            }
-            console.log("Navbar encontrada e resposta OK.");
-            return response.text();
-        })
-        .then(html => {
-            navbarPlaceholder.innerHTML = html;
-            console.log("Navbar HTML carregada no placeholder.");
-
-            // Continua com a inicialização...
-            initializeNavbarLogic();
-            adjustNavbarVisibility();
-            initializeThemeLogic();
-            initializeLogoutLogic();
-            displayLoggedInUser();
-            initializePageSpecificLogic();
-
-            setTimeout(() => {
-                if (document.body) document.body.classList.remove('preload-transition');
-                console.log("Preload transition removida.");
-            }, 50);
-        })
-        .catch(error => {
-            console.error("Falha crítica ao carregar a navbar:", error);
-            navbarPlaceholder.innerHTML = `<p class="text-danger p-3">Erro fatal ao carregar a navegação. Verifique o caminho do arquivo e o console (F12).</p>`;
-            setTimeout(() => { if(document.body) document.body.classList.remove('preload-transition'); }, 50);
-        });
-}
-
+// Função loadNavbarAndInitializeScripts foi REMOVIDA pois a navbar agora está embutida
 
 /**
  * Ajusta a visibilidade dos itens da navbar com base no perfil do usuário logado.
- * Deve ser chamada DEPOIS que o HTML da navbar foi carregado.
+ * Deve ser chamada DEPOIS que o DOM foi carregado nas páginas de admin.
  */
 function adjustNavbarVisibility() {
     const userRole = getUserRole();
@@ -256,9 +200,10 @@ function initializeNavbarLogic() {
     const desktopToggle = document.getElementById('nav-toggle-desktop');
     const isMobile = () => window.innerWidth < 768;
 
-    if(!nav || !bodypd || !headerpd || !desktopToggle) {
-        console.error("Elementos essenciais da Navbar visual não encontrados.");
-        return;
+    // Verifica se os elementos essenciais existem (importante agora que está embutido)
+    if(!nav || !bodypd || !headerpd || !desktopToggle || !toggleMobile) {
+        console.error("Elementos essenciais da Navbar visual não encontrados no HTML da página.");
+        return; // Interrompe se a estrutura da navbar não estiver correta na página
     }
 
     // Função para aplicar o estado (recolhido/expandido) no desktop
@@ -293,12 +238,9 @@ function initializeNavbarLogic() {
     };
 
     // Adiciona listeners aos botões de toggle
-    if (toggleMobile) {
-        toggleMobile.addEventListener('click', toggleNav);
-    }
-    if (desktopToggle) {
-        desktopToggle.addEventListener('click', toggleNav);
-    }
+    toggleMobile.addEventListener('click', toggleNav);
+    desktopToggle.addEventListener('click', toggleNav);
+
 
     // Restaura o estado da navbar no desktop ao carregar a página
     if (!isMobile()) {
@@ -306,38 +248,28 @@ function initializeNavbarLogic() {
         //console.log("Restaurando estado desktop. Salvo:", savedState);
         // Recolhe apenas se explicitamente salvo como 'collapsed', senão expande
         applyDesktopState(savedState === 'collapsed');
+    } else {
+        // Garante que no mobile a navbar comece escondida e o body sem padding extra
+        nav.classList.remove('show-nav');
+        bodypd.classList.remove('body-pd', 'body-pd-collapsed');
+        headerpd.classList.remove('header-pd', 'header-pd-collapsed');
     }
+
 
     // Destaca o link ativo na navbar
     const linkColor = document.querySelectorAll('.nav_link');
-    // Obtem o nome do arquivo da URL atual
-    let currentPageFile = 'index.html'; // Default
-    const pathSegments = window.location.pathname.split('/').filter(Boolean);
-    if (pathSegments.length > 0) {
-        const lastSegment = pathSegments[pathSegments.length - 1];
-        if (lastSegment.endsWith('.html')) {
-            currentPageFile = lastSegment;
-        } else if (pathSegments.length === 1 && !lastSegment.includes('.')) { // Caso raiz do repo
-            currentPageFile = 'index.html';
-        }
-         // Considera o caso de não ter .html (ex: /admin_dashboard)
-         else if (!lastSegment.includes('.')) {
-              currentPageFile = lastSegment + '.html'; // Tenta adicionar .html
-         }
-    }
-     console.log("Current page file for highlighting:", currentPageFile);
-
+    const currentPath = window.location.pathname.split("/").pop() || 'index.html'; // index.html não deveria ser alcançado aqui, mas por segurança
 
     linkColor.forEach(l => {
         l.classList.remove('active'); // Remove de todos primeiro
         const linkPage = l.dataset.page;
 
-        // Condição especial para dashboard (página raiz ou admin_dashboard.html)
-        if ((currentPageFile === 'index.html' || currentPageFile === 'admin_dashboard.html') && linkPage === 'admin_dashboard.html') {
-             l.classList.add('active');
+        // Condição especial para dashboard (admin_dashboard.html)
+        if (currentPath === 'admin_dashboard.html' && linkPage === 'admin_dashboard.html') {
+            l.classList.add('active');
         }
         // Condição geral para outras páginas
-        else if (linkPage === currentPageFile) {
+        else if (linkPage === currentPath) {
             l.classList.add('active');
         }
     });
@@ -346,41 +278,38 @@ function initializeNavbarLogic() {
 }
 
 function initializeThemeLogic() {
-    const darkModeSwitchHeader = document.getElementById('darkModeSwitchHeader'); // Switch no header
+    const darkModeSwitchHeader = document.getElementById('darkModeSwitchHeader'); // Switch no header (páginas admin)
     const darkModeSwitchPage = document.getElementById('darkModeSwitch'); // Switch em páginas sem header (login, etc)
     const body = document.body;
 
-    // Determina qual switch usar (pode haver um ou outro, ou ambos se o header existir)
+    // Determina qual switch usar (pode haver um ou outro)
     const currentSwitch = darkModeSwitchHeader || darkModeSwitchPage;
-    const lightIcon = document.querySelector('.light-icon');
-    const darkIcon = document.querySelector('.dark-icon');
+    const lightIcon = document.querySelector('.light-icon'); // Icone sol (página login/etc)
+    const darkIcon = document.querySelector('.dark-icon');   // Icone lua (página login/etc)
 
-
-    if (!currentSwitch) {
-        console.warn("Nenhum switch de tema encontrado nesta página.");
-        // Mesmo sem switch, aplica o tema salvo ou preferência
-        setThemeFromStorageOrPreference(null);
-        return;
-    }
 
     // Aplica o tema (dark/light) ao body e atualiza o estado do(s) switch(es) e icones
     function applyTheme(theme, initiatingSwitch) {
         if (theme === 'dark') {
             body.classList.add('dark-mode');
-            if(currentSwitch) currentSwitch.checked = true; // Atualiza o switch principal
-            // Se houver os dois switches, sincroniza o outro
+            if(currentSwitch) currentSwitch.checked = true; // Atualiza o switch relevante
+
+            // Sincroniza o outro switch SE ambos existirem (improvável agora, mas seguro)
             if (darkModeSwitchHeader && darkModeSwitchPage && initiatingSwitch !== darkModeSwitchHeader) darkModeSwitchHeader.checked = true;
             if (darkModeSwitchHeader && darkModeSwitchPage && initiatingSwitch !== darkModeSwitchPage) darkModeSwitchPage.checked = true;
-            // Atualiza icones (se existirem)
+
+            // Atualiza icones (se existirem na página atual)
             if(lightIcon) lightIcon.style.display = 'none';
             if(darkIcon) darkIcon.style.display = 'inline-block';
 
-        } else {
+        } else { // theme === 'light'
             body.classList.remove('dark-mode');
-            if(currentSwitch) currentSwitch.checked = false; // Atualiza o switch principal
-            // Sincroniza o outro switch se existir
+            if(currentSwitch) currentSwitch.checked = false; // Atualiza o switch relevante
+
+            // Sincroniza o outro switch se ambos existirem
             if (darkModeSwitchHeader && darkModeSwitchPage && initiatingSwitch !== darkModeSwitchHeader) darkModeSwitchHeader.checked = false;
             if (darkModeSwitchHeader && darkModeSwitchPage && initiatingSwitch !== darkModeSwitchPage) darkModeSwitchPage.checked = false;
+
              // Atualiza icones (se existirem)
              if(lightIcon) lightIcon.style.display = 'inline-block';
              if(darkIcon) darkIcon.style.display = 'none';
@@ -405,24 +334,27 @@ function initializeThemeLogic() {
 
     // Função para lidar com a mudança de tema pelo usuário
     function handleThemeChange(event) {
+        // Garante que o evento venha de um input checkbox
+        if (!event || !event.target || typeof event.target.checked === 'undefined') return;
+
         const newTheme = event.target.checked ? 'dark' : 'light';
         applyTheme(newTheme, event.target); // Aplica o novo tema e sincroniza os switches/icones
         localStorage.setItem('theme', newTheme); // Salva a escolha do usuário
          //console.log("Tema alterado para:", newTheme);
     }
 
-    // Adiciona listener ao(s) switch(es) encontrado(s)
-    if (darkModeSwitchHeader) {
-        darkModeSwitchHeader.addEventListener('change', handleThemeChange);
-    }
-    if (darkModeSwitchPage && darkModeSwitchPage !== darkModeSwitchHeader) { // Evita adicionar listener duas vezes se for o mesmo elemento
-        darkModeSwitchPage.addEventListener('change', handleThemeChange);
-    }
+     // Adiciona listener APENAS ao switch que existe na página atual
+     if (currentSwitch) {
+         currentSwitch.addEventListener('change', handleThemeChange);
+     } else {
+         console.warn("Nenhum switch de tema encontrado nesta página para adicionar listener.");
+     }
+
 
     // Listener para mudanças na preferência do sistema (caso o usuário não tenha definido um tema)
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener('change', (e) => {
         if (!localStorage.getItem('theme')) { // Só muda se não houver preferência salva
-            applyTheme(e.matches ? 'dark' : 'light', currentSwitch);
+            applyTheme(e.matches ? 'dark' : 'light', currentSwitch); // Usa o switch da página atual como referência
         }
     });
 
@@ -432,6 +364,7 @@ function initializeThemeLogic() {
 }
 
 function initializeLogoutLogic() {
+    // Seleciona ambos os links de logout (desktop na sidebar, mobile no header)
     const logoutLinks = document.querySelectorAll('#logout-link, #header-logout-link-mobile');
     logoutLinks.forEach(link => {
         if(link) {
@@ -454,44 +387,29 @@ function initializeLogoutLogic() {
 
 function displayLoggedInUser() {
     const loggedInUserEmail = localStorage.getItem('userEmail');
-    if (loggedInUserEmail) {
-        const userNameMobile = document.getElementById('loggedInUserNameDisplayMobile'); // Pode não existir mais
-        const userNameDesktop = document.getElementById('loggedInUserNameDisplay');
+    // O elemento no header é o único relevante agora
+    const userNameDisplay = document.getElementById('loggedInUserNameDisplay');
+
+    if (loggedInUserEmail && userNameDisplay) {
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const currentUser = users.find(u => u.email === loggedInUserEmail);
 
         // Usa o primeiro nome do usuário ou a parte antes do @ do email
         const displayName = currentUser ? currentUser.name.split(' ')[0] : loggedInUserEmail.split('@')[0];
 
-        if(userNameMobile) { // Verifica se o elemento existe antes de tentar usar
-            userNameMobile.textContent = `Olá, ${displayName}`;
-        }
-        if(userNameDesktop) {
-            userNameDesktop.textContent = `Olá, ${displayName}`;
-        }
-        //console.log(`Usuário logado (${displayName}) exibido.`);
-    } else {
-         //console.log("Nenhum usuário logado para exibir.");
+        userNameDisplay.textContent = `Olá, ${displayName}`;
+        //console.log(`Usuário logado (${displayName}) exibido no header.`);
+    } else if (userNameDisplay) {
+         userNameDisplay.textContent = ''; // Limpa se não estiver logado ou elemento não existir
+         //console.log("Nenhum usuário logado para exibir ou elemento não encontrado.");
     }
 }
 
 function initializePageSpecificLogic() {
-     // Re-detecta a página atual para a lógica específica
-     let currentPageFile = 'index.html'; // Default
-     const pathSegments = window.location.pathname.split('/').filter(Boolean);
-     if (pathSegments.length > 0) {
-          const lastSegment = pathSegments[pathSegments.length - 1];
-          if (lastSegment.endsWith('.html')) {
-               currentPageFile = lastSegment;
-          } else if (pathSegments.length === 1 && !lastSegment.includes('.')) {
-               currentPageFile = 'index.html';
-          } else if (!lastSegment.includes('.')) {
-              currentPageFile = lastSegment + '.html'; // Tenta adicionar .html
-          }
-     }
-    console.log("Inicializando lógica específica para página:", currentPageFile);
+    const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+    console.log("Inicializando lógica para página:", currentPage);
 
-    switch (currentPageFile) {
+    switch (currentPage) {
         case 'admin_manage_users.html':
             initializeManageUsersPage();
             break;
@@ -516,11 +434,13 @@ function initializePageSpecificLogic() {
         case 'forgot_password.html':
             initializeForgotPasswordPage();
             break;
+        case 'register.html': // Adicionado caso para página de registro
+            initializeRegisterPage(); // Precisa criar esta função
+            break;
         default:
-            console.log(`Nenhuma lógica específica definida para a página ${currentPageFile}.`);
+            console.log(`Nenhuma lógica específica definida para a página ${currentPage}.`);
     }
 }
-
 
 // --- Lógica da Página: Meu Perfil ---
 function initializeProfilePage() {
@@ -544,6 +464,7 @@ function initializeProfilePage() {
     if (!userInfo || !userInfo.id) {
          console.error("Não foi possível obter informações do usuário logado.");
          messageDiv.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados do usuário. Faça login novamente.</div>`;
+         profileForm.style.display = 'none'; // Esconde o formulário
          return;
     }
 
@@ -553,6 +474,7 @@ function initializeProfilePage() {
     if (!currentUser) {
         console.error("Usuário logado não encontrado no localStorage pelo ID:", userInfo.id);
         messageDiv.innerHTML = `<div class="alert alert-danger">Erro crítico: Dados do usuário logado não encontrados.</div>`;
+        profileForm.style.display = 'none'; // Esconde o formulário
         // Talvez forçar logout aqui?
         // localStorage.clear(); window.location.href = 'index.html';
         return;
@@ -573,6 +495,9 @@ function initializeProfilePage() {
         messageDiv.innerHTML = ''; // Limpa mensagens anteriores
         confirmPasswordInput.setCustomValidity(""); // Limpa validação customizada da senha
         newPasswordInput.setCustomValidity(""); // Limpa validação customizada da nova senha
+        // Limpa classes de validação
+        profileForm.classList.remove('was-validated');
+        Array.from(profileForm.elements).forEach(el => el.classList.remove('is-invalid'));
 
         const newPassword = newPasswordInput.value;
         const confirmPassword = confirmPasswordInput.value;
@@ -581,23 +506,25 @@ function initializeProfilePage() {
         if (newPassword) {
             if (newPassword.length < 6) {
                 newPasswordInput.setCustomValidity("A nova senha deve ter pelo menos 6 caracteres.");
-                profileForm.classList.add('was-validated');
+                newPasswordInput.classList.add('is-invalid');
                 newPasswordInput.reportValidity(); // Mostra o erro no campo
+                profileForm.classList.add('was-validated'); // Adiciona classe geral
                 return;
             }
             if (newPassword !== confirmPassword) {
                 confirmPasswordInput.setCustomValidity("As senhas não coincidem.");
-                profileForm.classList.add('was-validated');
+                confirmPasswordInput.classList.add('is-invalid');
                 confirmPasswordInput.reportValidity(); // Mostra o erro no campo
+                profileForm.classList.add('was-validated'); // Adiciona classe geral
                 return;
             }
         }
         // Torna a confirmação obrigatória *apenas* se a nova senha foi digitada
         confirmPasswordInput.required = !!newPassword;
 
-        // Validação geral do Bootstrap
+        // Validação geral do Bootstrap (Nome não pode estar vazio)
         if (!profileForm.checkValidity()) {
-            profileForm.classList.add('was-validated');
+            profileForm.classList.add('was-validated'); // Mostra outros erros (como nome vazio)
             return;
         }
 
@@ -632,6 +559,7 @@ function initializeProfilePage() {
             // Atualiza a exibição da imagem
             currentImageNameSpan.textContent = updatedUserData.imageUrl ? updatedUserData.imageUrl.split('/').pop() : 'Nenhuma';
             imagePreview.src = updatedUserData.imageUrl || 'img/placeholder-user.png';
+            imageInput.value = ''; // Limpa o input file
             // Atualiza o nome no header
             displayLoggedInUser();
         } else {
@@ -648,7 +576,7 @@ function initializeProfilePage() {
 // --- Lógica da Página: Gerenciar Pedidos ---
 function initializeOrdersPage() {
     const ordersTableBody = document.getElementById('orders-table-body');
-    const receiptModalEl = document.getElementById('receiptModal');
+    const receiptModalEl = document.getElementById('receiptModal'); // Pode não existir em todas as versões
     const dateFilterInput = document.getElementById('orderDateFilter');
     const categoryFilterSelect = document.getElementById('categoryFilter');
     const statusFilterSelect = document.getElementById('statusFilter');
@@ -665,24 +593,39 @@ function initializeOrdersPage() {
         console.warn("Elemento #receiptModal não encontrado nesta página.");
         // Pode continuar, mas funcionalidade de recibo não funcionará
     }
+    // Verifica se Bootstrap e Modal estão carregados
     if (typeof bootstrap === 'undefined' || typeof bootstrap.Modal === 'undefined') {
         console.error('Biblioteca Bootstrap Modal não está carregada.');
-        return; // Impede a execução se o Bootstrap não estiver pronto
+        // return; // Poderia interromper, mas a tabela ainda pode funcionar
     }
 
-    let receiptModal = receiptModalEl ? new bootstrap.Modal(receiptModalEl) : null;
+    // Instancia o modal de recibo APENAS se o elemento existir E Bootstrap estiver carregado
+    let receiptModal = null;
+    if (receiptModalEl && typeof bootstrap !== 'undefined' && typeof bootstrap.Modal !== 'undefined') {
+        try {
+            receiptModal = new bootstrap.Modal(receiptModalEl);
+        } catch(e) {
+            console.error("Erro ao instanciar Modal de Recibo:", e);
+        }
+    }
 
     // Define a data de hoje como padrão no filtro
     if(dateFilterInput) {
          // Usar try-catch para evitar erro se o navegador não suportar valueAsDate
          try {
-            dateFilterInput.valueAsDate = new Date();
+            // Tenta definir via objeto Date (melhor)
+            const today = new Date();
+            // Ajusta para o fuso horário local para evitar problemas de dia +/- 1
+            today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+            dateFilterInput.valueAsDate = today;
          } catch (e) {
+             // Fallback para string YYYY-MM-DD
              const today = new Date();
              const yyyy = today.getFullYear();
              const mm = String(today.getMonth() + 1).padStart(2, '0'); // Janeiro é 0!
              const dd = String(today.getDate()).padStart(2, '0');
              dateFilterInput.value = `${yyyy}-${mm}-${dd}`;
+             console.warn("Fallback para definir data como string YYYY-MM-DD.");
          }
     }
 
@@ -695,17 +638,21 @@ function initializeOrdersPage() {
         if (!button) return; // Sai se o clique não foi em um botão
 
         const orderId = button.dataset.orderId;
+        if (!orderId) return; // Sai se o botão não tiver orderId
 
         // Lógica para botões de mudança de status
         if (button.classList.contains('status-change-btn')) {
             const newStatus = button.dataset.newStatus;
-            //console.log(`Botão status-change clicado: OrderID=${orderId}, NewStatus=${newStatus}`);
-            updateOrderStatus(orderId, newStatus);
+            if (newStatus) {
+                //console.log(`Botão status-change clicado: OrderID=${orderId}, NewStatus=${newStatus}`);
+                updateOrderStatus(orderId, newStatus);
+            }
         }
         // Lógica para botão de reverter status
         else if (button.classList.contains('revert-status-btn')) {
              //console.log(`Botão revert-status clicado: OrderID=${orderId}`);
-            if (confirm(`Tem certeza que deseja reverter o status do pedido #${orderId.substring(orderId.length-5)} para "Solicitado"?`)) {
+             // Pede confirmação antes de reverter
+            if (confirm(`Tem certeza que deseja reverter o status do pedido #${orderId.substring(orderId.length-5)} para "Solicitado"?\nIsso pode impactar o fluxo da cozinha.`)) {
                 updateOrderStatus(orderId, 'solicitado');
             }
         }
@@ -725,14 +672,14 @@ function initializeOrdersPage() {
             displayOrdersTable(); // Atualiza a tabela sem filtros
         });
     }
-    // Atualiza a tabela automaticamente ao mudar filtros de select (opcional)
+    // Atualiza a tabela automaticamente ao mudar filtros de select (opcional, mas conveniente)
     if(categoryFilterSelect) {
         categoryFilterSelect.addEventListener('change', displayOrdersTable);
     }
     if(statusFilterSelect) {
         statusFilterSelect.addEventListener('change', displayOrdersTable);
     }
-     // Atualiza a tabela automaticamente ao mudar data (opcional)
+     // Atualiza a tabela automaticamente ao mudar data (opcional, mas conveniente)
      if(dateFilterInput) {
          dateFilterInput.addEventListener('change', displayOrdersTable);
      }
@@ -753,12 +700,20 @@ function initializeDishesPage() {
         console.error("Elementos essenciais da página Gerenciar Pratos não encontrados.");
         return;
     }
+    // Verifica se Bootstrap e Modal estão carregados
     if (typeof bootstrap === 'undefined' || typeof bootstrap.Modal === 'undefined') {
         console.error('Biblioteca Bootstrap Modal não está carregada.');
-        return;
+        return; // Interrompe se Modal não estiver pronto
     }
 
-    const addDishModal = new bootstrap.Modal(addDishModalEl);
+    let addDishModal = null;
+    try {
+         addDishModal = new bootstrap.Modal(addDishModalEl);
+    } catch(e) {
+         console.error("Erro ao instanciar Modal de Adicionar Prato:", e);
+         return; // Não continua se o modal falhar
+    }
+
 
     // --- Controle de Acesso ---
     if (userRole !== 'admin') {
@@ -778,10 +733,12 @@ function initializeDishesPage() {
         if (!button) return;
 
         const dishId = button.dataset.id;
+        if (!dishId) return; // Precisa do ID para agir
+
         if (button.classList.contains('edit-dish-btn')) {
             editDish(dishId); // Função de editar (ainda placeholder)
         } else if (button.classList.contains('delete-dish-btn')) {
-            deleteDish(dishId); // Função de excluir (placeholder)
+            deleteDish(dishId); // Função de excluir (implementada)
         }
     });
 
@@ -794,14 +751,18 @@ function initializeDishesPage() {
         if (userRole !== 'admin') {
             console.warn("Tentativa de adicionar prato por usuário não-admin bloqueada.");
             alert("Ação não permitida.");
-            addDishModal.hide();
+            if(addDishModal) addDishModal.hide();
             return;
         }
 
         const messageDiv = document.getElementById('addDishForm-message');
         messageDiv.innerHTML = '';
-        addDishForm.classList.add('was-validated');
+        addDishForm.classList.remove('was-validated'); // Limpa validação anterior
+        Array.from(addDishForm.elements).forEach(el => el.classList.remove('is-invalid')); // Limpa campos inválidos
+
+        // Aplica validação Bootstrap
         if (!addDishForm.checkValidity()) {
+            addDishForm.classList.add('was-validated');
             return;
         }
 
@@ -811,12 +772,19 @@ function initializeDishesPage() {
         const category = document.getElementById('addDishCategory').value;
         const imageFile = document.getElementById('addDishImage').files[0];
 
+        // Validação de preço (já tem min="0" no HTML, mas reforça)
+        if (isNaN(price) || price < 0) {
+             messageDiv.innerHTML = `<div class="alert alert-danger">Preço inválido.</div>`;
+             document.getElementById('addDishPrice').classList.add('is-invalid');
+             return;
+        }
+
         // Cria nome de imagem formatado e URL simulada
         const imageName = formatImageName(name);
-        // Define uma extensão padrão (ex: .jpg) se nenhuma imagem for selecionada
-        const imageUrl = imageFile
-            ? `img/dishes/${imageName}.${imageFile.name.split('.').pop()}`
-            : `img/dishes/${imageName}.jpg`; // Ou deixe null/vazio se preferir
+        // Define uma extensão padrão (ex: .jpg) se nenhuma imagem for selecionada OU usa a extensão do arquivo
+        const fileExtension = imageFile ? imageFile.name.split('.').pop() : 'jpg'; // Pega extensão ou usa jpg
+        const imageUrl = `img/dishes/${imageName}.${fileExtension}`;
+
 
         const newDish = {
             id: 'd' + Date.now(), // ID único baseado no tempo
@@ -832,17 +800,23 @@ function initializeDishesPage() {
             addDishForm.reset();
             addDishForm.classList.remove('was-validated');
             displayDishes(userRole); // Atualiza a lista na página
+            // Fecha modal após um delay
             setTimeout(() => {
-                addDishModal.hide();
-                messageDiv.innerHTML = ''; // Limpa mensagem ao fechar
+                if(addDishModal) addDishModal.hide();
+                messageDiv.innerHTML = ''; // Limpa mensagem ao fechar de fato
             }, 1500);
         } else {
             // addDish deve ter mostrado a mensagem de erro (ex: nome duplicado)
-            // Apenas garante que o campo inválido (nome) seja marcado se o erro foi de duplicação
+            // Apenas garante que o campo inválido (nome/preço) seja marcado se o erro foi específico
             const nameInput = document.getElementById('addDishName');
-            if (nameInput && messageDiv.innerHTML.includes("nome")) { // Verifica se a msg é sobre nome
+            const priceInput = document.getElementById('addDishPrice');
+            if (nameInput && messageDiv.innerHTML.includes("nome")) {
                  nameInput.classList.add('is-invalid');
             }
+             if (priceInput && messageDiv.innerHTML.includes("Preço")) {
+                  priceInput.classList.add('is-invalid');
+             }
+             addDishForm.classList.add('was-validated'); // Re-aplica para mostrar erros
         }
     });
 
@@ -851,9 +825,9 @@ function initializeDishesPage() {
         addDishForm.reset();
         addDishForm.classList.remove('was-validated');
         document.getElementById('addDishForm-message').innerHTML = '';
-        // Remove a marcação de inválido do campo nome (se houver)
-        const nameInput = document.getElementById('addDishName');
-        if(nameInput) nameInput.classList.remove('is-invalid');
+        // Remove a marcação de inválido dos campos
+        Array.from(addDishForm.elements).forEach(el => el.classList.remove('is-invalid'));
+        document.getElementById('addDishImage').value = ''; // Limpa input file especificamente
     });
 
     //console.log(`Lógica da página Gerenciar Pratos inicializada para perfil: ${userRole}.`);
@@ -878,9 +852,10 @@ function initializeTablesPage() {
         console.error("Elementos essenciais da página Gerenciar Mesas não encontrados.");
         return;
     }
+    // Verifica se Bootstrap e Modal estão carregados
     if (typeof bootstrap === 'undefined' || typeof bootstrap.Modal === 'undefined') {
         console.error('Biblioteca Bootstrap Modal não está carregada.');
-        return;
+        return; // Interrompe se Modal não estiver pronto
     }
 
     // --- Controle de Acesso ---
@@ -931,16 +906,28 @@ function initializeTablesPage() {
 
         if (tableStatus === 'free') {
             // Mesa Livre: Abre modal para ocupar
-            document.getElementById('occupyTableId').value = tableId;
-            document.getElementById('occupyTableNumber').textContent = tableNumber;
-            document.getElementById('occupyTablePeople').value = 1; // Padrão 1 pessoa
+            const occupyIdInput = document.getElementById('occupyTableId');
+            const occupyNumberSpan = document.getElementById('occupyTableNumber');
+            const occupyPeopleInput = document.getElementById('occupyTablePeople');
+            const occupyMsgDiv = document.getElementById('occupyTableForm-message');
+
+            if(occupyIdInput) occupyIdInput.value = tableId;
+            if(occupyNumberSpan) occupyNumberSpan.textContent = tableNumber;
+            if(occupyPeopleInput) occupyPeopleInput.value = 1; // Padrão 1 pessoa
+
             // Limpa validações/mensagens anteriores
-            document.getElementById('occupyTablePeople').classList.remove('is-invalid');
-            document.getElementById('occupyTableForm-message').innerHTML = '';
-            occupyTableModal.show();
+            if(occupyPeopleInput) occupyPeopleInput.classList.remove('is-invalid');
+            if(occupyMsgDiv) occupyMsgDiv.innerHTML = '';
+
+            if(occupyTableModal) occupyTableModal.show();
         } else if (tableStatus === 'occupied') {
             // Mesa Ocupada: Abre modal de pedido/conta
-            openOrderModal(tableId, orderModal);
+             if(orderModal) {
+                openOrderModal(tableId, orderModal);
+             } else {
+                 console.error("Instância do Modal de Pedido não encontrada.");
+                 alert("Erro ao tentar abrir detalhes da mesa.");
+             }
         }
     });
 
@@ -948,11 +935,18 @@ function initializeTablesPage() {
     const confirmOccupyBtn = document.getElementById('confirmOccupyTableBtn');
     if (confirmOccupyBtn) {
         confirmOccupyBtn.addEventListener('click', () => {
-            const tableId = document.getElementById('occupyTableId').value;
+            const tableId = document.getElementById('occupyTableId')?.value;
             const peopleInput = document.getElementById('occupyTablePeople');
-            const peopleCount = parseInt(peopleInput.value, 10);
             const msgDiv = document.getElementById('occupyTableForm-message');
+
+            if (!tableId || !peopleInput || !msgDiv) {
+                console.error("Elementos do modal de ocupar mesa não encontrados.");
+                return;
+            }
+
+            const peopleCount = parseInt(peopleInput.value, 10);
             msgDiv.innerHTML = ''; // Limpa mensagem anterior
+            peopleInput.classList.remove('is-invalid'); // Limpa erro anterior
 
             if(isNaN(peopleCount) || peopleCount < 1) {
                 msgDiv.innerHTML = '<div class="alert alert-danger small p-2">Número de pessoas inválido.</div>';
@@ -963,7 +957,7 @@ function initializeTablesPage() {
             peopleInput.classList.remove('is-invalid');
             //console.log(`Confirmando ocupação: Mesa ID=${tableId}, Pessoas=${peopleCount}`);
             occupyTable(tableId, peopleCount); // Chama a função para ocupar
-            occupyTableModal.hide(); // Fecha o modal
+            if(occupyTableModal) occupyTableModal.hide(); // Fecha o modal
         });
     } else {
          console.error("Botão 'confirmOccupyTableBtn' não encontrado.");
@@ -978,16 +972,18 @@ function initializeTablesPage() {
         if (userRole !== 'admin') {
              console.warn("Tentativa de adicionar mesa por usuário não-admin bloqueada.");
              alert("Ação não permitida.");
-             addTableModal.hide();
+             if(addTableModal) addTableModal.hide();
              return;
         }
 
         const tableNumberInput = document.getElementById('addTableNumber');
         const messageDiv = document.getElementById('addTableForm-message');
         messageDiv.innerHTML = '';
-        addTableForm.classList.add('was-validated');
+        addTableForm.classList.remove('was-validated'); // Limpa validação
+        tableNumberInput.classList.remove('is-invalid'); // Limpa erro
 
         if (!addTableForm.checkValidity()) {
+            addTableForm.classList.add('was-validated');
             return;
         }
 
@@ -999,12 +995,13 @@ function initializeTablesPage() {
             addTableForm.classList.remove('was-validated');
             displayTables(); // Atualiza a visualização das mesas
             setTimeout(() => {
-                addTableModal.hide();
+                if(addTableModal) addTableModal.hide();
                 messageDiv.innerHTML = '';
             }, 1500);
         } else {
-            // addTable deve ter mostrado a mensagem de erro (número duplicado)
+            // addTable deve ter mostrado a mensagem de erro (número duplicado ou inválido)
             tableNumberInput.classList.add('is-invalid'); // Marca o campo como inválido
+            addTableForm.classList.add('was-validated'); // Mostra erro
         }
     });
 
@@ -1030,16 +1027,17 @@ function initializeTablesPage() {
     // Botão Liberar Mesa
     if (clearTableBtn) {
         clearTableBtn.addEventListener('click', function() {
-            const tableId = document.getElementById('orderModalTableId').value;
-            const tableNumber = document.getElementById('orderModalTableNumber').textContent;
+            const tableId = document.getElementById('orderModalTableId')?.value;
+            const tableNumber = document.getElementById('orderModalTableNumber')?.textContent;
             if (tableId) {
                  if(confirm(`LIBERAR MESA ${tableNumber}?\n\nATENÇÃO: Isso cancelará TODOS os pedidos (registrados no sistema) desta mesa e marcará a mesa como livre. Não adicionará valor ao faturamento.`)) {
                     console.log(`Confirmado: Liberar mesa ${tableNumber} (ID: ${tableId})`);
                     freeUpTable(tableId);
-                    orderModal.hide();
+                    if(orderModal) orderModal.hide();
                 }
             } else {
                  console.error("ID da mesa não encontrado ao tentar liberar.");
+                 alert("Erro interno: ID da mesa não encontrado.");
             }
         });
     }
@@ -1047,8 +1045,8 @@ function initializeTablesPage() {
     // Botão Gerar Conta
     if (closeBillBtn) {
         closeBillBtn.addEventListener('click', function() {
-            const tableId = document.getElementById('orderModalTableId').value;
-            if (tableId && receiptModal) {
+            const tableId = document.getElementById('orderModalTableId')?.value;
+            if (tableId && receiptModal) { // Verifica se o modal de recibo foi instanciado
                  //console.log(`Gerando conta para mesa ID: ${tableId}`);
                 openReceiptModal(tableId, receiptModal); // Abre o modal e TENTA adicionar ao faturamento diário
             } else {
@@ -1077,19 +1075,25 @@ function initializeTablesPage() {
         tempOrderItems = []; // Limpa array de itens temporários
         displayTempItems(); // Atualiza a exibição da lista vazia
         // Reseta campos do formulário de adicionar item
-        document.getElementById('dishSelect').selectedIndex = 0;
-        document.getElementById('itemQuantity').value = 1;
-        document.getElementById('itemObservation').value = '';
+        const dishSelect = document.getElementById('dishSelect');
+        if(dishSelect) dishSelect.selectedIndex = 0;
+        const qtyInput = document.getElementById('itemQuantity');
+        if(qtyInput) qtyInput.value = 1;
+        const obsInput = document.getElementById('itemObservation');
+        if(obsInput) obsInput.value = '';
         // Limpa a lista de pedidos anteriores e mensagens
-        document.getElementById('ongoingOrdersList').innerHTML = '<p class="text-muted p-2">Carregando...</p>';
-        document.getElementById('orderModal-message').innerHTML = '';
+        const ongoingList = document.getElementById('ongoingOrdersList');
+        if(ongoingList) ongoingList.innerHTML = '<p class="text-muted p-2">Carregando...</p>';
+        const orderMsgDiv = document.getElementById('orderModal-message');
+        if(orderMsgDiv) orderMsgDiv.innerHTML = '';
         // Limpa o ID da mesa no modal
-        document.getElementById('orderModalTableId').value = '';
+         const orderTableIdInput = document.getElementById('orderModalTableId');
+         if(orderTableIdInput) orderTableIdInput.value = '';
     });
 
     // --- Listeners do Modal de Recibo ---
     const taxCheckbox = document.getElementById('addServiceTaxCheck');
-    if (taxCheckbox && receiptModalEl) {
+    if (taxCheckbox && receiptModalEl && receiptModal) { // Verifica se temos a instância do modal
         // Atualiza o recibo quando a taxa de serviço é marcada/desmarcada
         taxCheckbox.addEventListener('change', () => {
             const tableId = receiptModalEl.dataset.tableId; // Pega o ID da mesa do atributo data-* do modal
@@ -1099,7 +1103,8 @@ function initializeTablesPage() {
                 const tables = JSON.parse(localStorage.getItem('tables') || '[]');
                 const table = tables.find(t => t.id === tableId);
                 // Filtra pedidos relevantes para a conta (não cancelados, etc.)
-                const tableOrders = orders.filter(o => o.tableId === tableId && ['solicitado', 'preparacao', 'concluido'].includes(o.status));
+                const relevantStatuses = ['solicitado', 'preparacao', 'concluido'];
+                const tableOrders = orders.filter(o => o.tableId === tableId && relevantStatuses.includes(o.status));
                 const receiptBody = document.getElementById('receiptModalBody');
                 if (table && receiptBody) {
                     // Regenera o HTML do corpo do recibo
@@ -1108,9 +1113,8 @@ function initializeTablesPage() {
             }
         });
 
-        // Guarda o tableId no modal quando ele é aberto
+        // Guarda o tableId no modal quando ele é aberto (ligado ao evento 'show')
         receiptModalEl.addEventListener('show.bs.modal', event => {
-            // Tenta pegar o ID da mesa do modal de pedido (se estiver aberto)
              const currentOrderModalTableId = document.getElementById('orderModalTableId')?.value;
              let tableIdToSet = '';
 
@@ -1118,7 +1122,7 @@ function initializeTablesPage() {
                  tableIdToSet = currentOrderModalTableId;
                  //console.log(`Abrindo recibo - ID da mesa ${tableIdToSet} obtido do modal de pedido.`);
              } else {
-                 // Se o modal de pedido não estiver aberto (caso raro), tenta pegar do botão que abriu
+                 // Fallback: Tenta pegar do botão que abriu (menos comum)
                  const triggerButton = event.relatedTarget;
                  if (triggerButton && triggerButton.dataset.tableId) {
                      tableIdToSet = triggerButton.dataset.tableId;
@@ -1135,6 +1139,9 @@ function initializeTablesPage() {
              //console.log("Modal de recibo fechado.");
             delete receiptModalEl.dataset.tableId; // Remove o ID da mesa
             if (taxCheckbox) taxCheckbox.checked = true; // Reseta a taxa para marcada (padrão)
+            // Limpa corpo do recibo
+             const receiptBody = document.getElementById('receiptModalBody');
+             if(receiptBody) receiptBody.innerHTML = '<p>Carregando...</p>';
         });
     }
 
@@ -1145,52 +1152,58 @@ function initializeTablesPage() {
             const receiptContent = document.getElementById('receiptModalBody');
             if (receiptContent) {
                 //console.log("Tentando imprimir recibo...");
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write('<html><head><title>Recibo</title>');
-                // Estilos básicos para impressão (ajustar conforme necessário)
-                printWindow.document.write(`
-                    <style>
-                        body { font-family: monospace; font-size: 10pt; margin: 20px; }
-                        .receipt-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
-                        .receipt-item span:last-child { min-width: 60px; text-align: right; }
-                        hr { border: 0; border-top: 1px dashed #888; margin: 5px 0; }
-                        .receipt-total, .receipt-grand-total { border-top: 1px dashed #888; padding-top: 5px; margin-top: 5px; font-weight: bold; }
-                        .text-center { text-align: center;}
-                        .small { font-size: 0.8em;} .mb-1 { margin-bottom: 0.25rem;} .mb-2 { margin-bottom: 0.5rem;}
-                        .mt-2 { margin-top: 0.5rem;} .ms-2 { margin-left: 0.5rem;} .d-block { display: block;}
-                        .text-muted { color: #6c757d;} .fst-italic { font-style: italic;}
-                        h6 {font-size: 1.1em; margin: 10px 0 5px 0; text-align: center;}
-                        p { margin: 2px 0; }
-                        .receipt-per-person { font-size: 0.85em; text-align: right; margin-top: 3px; }
-                        .receipt-service-tax { font-size: 0.9em; }
-                        @media print {
-                            /* Esconder botões e outros elementos não desejados na impressão */
-                            body * { visibility: hidden; }
-                            #print-content, #print-content * { visibility: visible; }
-                            #print-content { position: absolute; left: 0; top: 0; width: 100%; }
-                            .no-print { display: none; }
-                        }
-                    </style>
-                `);
-                printWindow.document.write('</head><body>');
-                // Adiciona um wrapper para facilitar a impressão seletiva se necessário
-                printWindow.document.write('<div id="print-content">');
-                printWindow.document.write(receiptContent.innerHTML);
-                printWindow.document.write('</div>');
-                printWindow.document.write('</body></html>');
-                printWindow.document.close(); // Necessário para alguns navegadores
-                printWindow.focus(); // Traz a janela de impressão para frente
-
-                // Atraso para garantir que o conteúdo seja renderizado antes de imprimir
-                setTimeout(() => {
-                    try {
-                        printWindow.print();
-                        printWindow.close(); // Fecha a janela após a impressão (ou cancelamento)
-                    } catch (e) {
-                        console.error("Erro ao tentar imprimir:", e);
-                        printWindow.close(); // Fecha mesmo se houver erro
+                try {
+                    const printWindow = window.open('', '_blank', 'height=600,width=400'); // Abre janela menor
+                    if(!printWindow) {
+                         alert("Não foi possível abrir a janela de impressão. Verifique as permissões de popup do seu navegador.");
+                         return;
                     }
-                }, 300);
+                    printWindow.document.write('<html><head><title>Recibo</title>');
+                    // Estilos básicos para impressão (ajustar conforme necessário)
+                    printWindow.document.write(`
+                        <style>
+                            body { font-family: monospace; font-size: 10pt; margin: 15px; color: #000; background-color: #fff;}
+                            h6 { font-size: 1.1em; margin: 10px 0 5px 0; text-align: center; }
+                            p { margin: 2px 0; }
+                            .receipt-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
+                            .receipt-item span:last-child { min-width: 60px; text-align: right; padding-left: 10px;} /* Adiciona padding */
+                            hr { border: 0; border-top: 1px dashed #555; margin: 5px 0; }
+                            .receipt-total, .receipt-grand-total { border-top: 1px dashed #555; padding-top: 5px; margin-top: 5px; font-weight: bold; }
+                            .receipt-service-tax { font-size: 0.9em; }
+                            .text-center { text-align: center;}
+                            .small { font-size: 0.8em;} .mb-1 { margin-bottom: 0.25rem;} .mb-2 { margin-bottom: 0.5rem;}
+                            .mt-2 { margin-top: 0.5rem;} .ms-2 { margin-left: 0.5rem;} .d-block { display: block;}
+                            .text-muted { color: #444;} .fst-italic { font-style: italic;}
+                            .receipt-per-person { font-size: 0.85em; text-align: right; margin-top: 3px; }
+                            @media print {
+                                /* Pode adicionar estilos específicos de impressão se necessário */
+                                @page { margin: 10mm; } /* Define margens da página */
+                                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* Força impressão de cores/fundos se houver */
+                            }
+                        </style>
+                    `);
+                    printWindow.document.write('</head><body>');
+                    printWindow.document.write(receiptContent.innerHTML); // Insere o conteúdo HTML do recibo
+                    printWindow.document.write('</body></html>');
+                    printWindow.document.close(); // Fecha o stream de escrita
+                    printWindow.focus(); // Traz a janela para frente
+
+                    // Atraso para garantir que o conteúdo seja renderizado antes de imprimir
+                    setTimeout(() => {
+                        try {
+                            printWindow.print();
+                            // A janela pode ou não fechar sozinha dependendo do navegador/configuração
+                            // Deixar aberta pode ser útil para salvar como PDF
+                            // printWindow.close();
+                        } catch (e) {
+                            console.error("Erro durante printWindow.print():", e);
+                            // printWindow.close(); // Fecha mesmo se houver erro
+                        }
+                    }, 500); // Aumenta um pouco o delay
+                } catch (e) {
+                     console.error("Erro geral ao tentar imprimir:", e);
+                     alert("Ocorreu um erro ao preparar a impressão.");
+                }
             } else {
                  console.error("Conteúdo do recibo (#receiptModalBody) não encontrado para impressão.");
             }
@@ -1216,13 +1229,21 @@ function initializeManageUsersPage() {
         console.error("Elementos essenciais da página Gerenciar Usuários não encontrados.");
         return;
     }
+    // Verifica se Bootstrap e Modal estão carregados
     if (typeof bootstrap === 'undefined' || typeof bootstrap.Modal === 'undefined') {
         console.error('Biblioteca Bootstrap Modal não está carregada.');
-        return;
+        return; // Interrompe se Modal não estiver pronto
     }
 
-    const addUserModal = new bootstrap.Modal(addUserModalEl);
-    const editUserModal = new bootstrap.Modal(editUserModalEl);
+    let addUserModal = null;
+    let editUserModal = null;
+    try {
+        addUserModal = new bootstrap.Modal(addUserModalEl);
+        editUserModal = new bootstrap.Modal(editUserModalEl);
+    } catch(e) {
+         console.error("Erro ao instanciar Modais de Usuário:", e);
+         return; // Não continua se os modais falharem
+    }
 
     // Popula a tabela de usuários ao carregar a página
     populateUserTable();
@@ -1233,6 +1254,8 @@ function initializeManageUsersPage() {
         if (!target) return; // Sai se não clicou em um botão
 
         const userId = target.dataset.userid;
+        if (!userId) return; // Precisa do ID para agir
+
         const isSelf = target.hasAttribute('data-is-self'); // Verifica se é o próprio usuário
 
         if (target.classList.contains('edit-user-btn')) {
@@ -1243,7 +1266,7 @@ function initializeManageUsersPage() {
              //console.log(`Botão Editar clicado para UserID: ${userId}`);
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             const userToEdit = users.find(u => u.id === userId);
-            if (userToEdit) {
+            if (userToEdit && editUserModal) {
                 // Preenche o modal de edição com os dados do usuário
                 document.getElementById('editUserId').value = userToEdit.id;
                 document.getElementById('editUserName').value = userToEdit.name;
@@ -1254,14 +1277,15 @@ function initializeManageUsersPage() {
                 document.getElementById('editUserConfirmPassword').value = '';
                  document.getElementById('editUserPassword').setCustomValidity("");
                  document.getElementById('editUserConfirmPassword').setCustomValidity("");
-                editUserForm.classList.remove('was-validated');
-                document.getElementById('editUserForm-message').innerHTML = '';
+                 document.getElementById('editUserForm-message').innerHTML = '';
+                 editUserForm.classList.remove('was-validated');
+                 Array.from(editUserForm.elements).forEach(el => el.classList.remove('is-invalid'));
                 // Confirmação de senha só é obrigatória se a nova senha for digitada
                 document.getElementById('editUserConfirmPassword').required = false;
                 editUserModal.show();
             } else {
-                console.error(`Usuário com ID ${userId} não encontrado para edição.`);
-                alert("Erro: Usuário não encontrado.");
+                console.error(`Usuário com ID ${userId} não encontrado para edição ou modal de edição não instanciado.`);
+                alert("Erro: Usuário não encontrado ou erro no modal.");
             }
         } else if (target.classList.contains('delete-user-btn')) {
              if (isSelf) {
@@ -1269,7 +1293,7 @@ function initializeManageUsersPage() {
                  return;
              }
               //console.log(`Botão Excluir clicado para UserID: ${userId}`);
-            if (confirm(`Tem certeza que deseja excluir o usuário ID ${userId}?\nEsta ação não pode ser desfeita.`)) {
+            if (confirm(`Tem certeza que deseja excluir o usuário '${target.closest('tr')?.querySelector('td:first-child')?.textContent || userId}'?\nEsta ação não pode ser desfeita.`)) {
                  //console.log(`Confirmada exclusão do UserID: ${userId}`);
                 deleteUser(userId); // Chama a função para remover do localStorage
             }
@@ -1287,15 +1311,19 @@ function initializeManageUsersPage() {
         const messageDiv = document.getElementById('addUserForm-message');
         messageDiv.innerHTML = ''; // Limpa mensagens
         confirmInput.setCustomValidity(""); // Limpa validação customizada
+        addUserForm.classList.remove('was-validated'); // Limpa validação anterior
+        Array.from(addUserForm.elements).forEach(el => el.classList.remove('is-invalid')); // Limpa campos inválidos
 
         // Validação de senha
         if (password !== confirm) {
             confirmInput.setCustomValidity("As senhas não coincidem.");
-            addUserForm.classList.add('was-validated');
+            addUserForm.classList.add('was-validated'); // Mostra erros
+            confirmInput.classList.add('is-invalid'); // Marca campo
             confirmInput.reportValidity(); // Mostra o erro
             return;
         }
-        // Validação Bootstrap geral
+
+        // Validação Bootstrap geral (campos required, minlength, type=email)
         if (!addUserForm.checkValidity()) {
             addUserForm.classList.add('was-validated');
             return;
@@ -1317,7 +1345,7 @@ function initializeManageUsersPage() {
             addUserForm.classList.remove('was-validated');
             populateUserTable(); // Atualiza a tabela na página
             setTimeout(() => {
-                addUserModal.hide();
+                if(addUserModal) addUserModal.hide();
                 messageDiv.innerHTML = ''; // Limpa mensagem ao fechar
             }, 1500);
         } else {
@@ -1326,6 +1354,7 @@ function initializeManageUsersPage() {
             const emailInput = document.getElementById('addUserEmail');
             if (emailInput && messageDiv.innerHTML.includes("Email")) { // Verifica se a msg é sobre email
                 emailInput.classList.add('is-invalid');
+                 addUserForm.classList.add('was-validated'); // Re-aplica para mostrar erro
             }
         }
     });
@@ -1343,6 +1372,9 @@ function initializeManageUsersPage() {
         messageDiv.innerHTML = ''; // Limpa mensagens
         confirmInput.setCustomValidity(""); // Limpa validação customizada
         newPasswordInput.setCustomValidity(""); // Limpa validação customizada
+        editUserForm.classList.remove('was-validated'); // Limpa validação anterior
+        Array.from(editUserForm.elements).forEach(el => el.classList.remove('is-invalid')); // Limpa campos inválidos
+
 
         // Validação de senha (APENAS se a nova senha foi digitada)
         confirmInput.required = !!password; // Obrigatório confirmar só se digitou nova senha
@@ -1350,19 +1382,21 @@ function initializeManageUsersPage() {
              if (password.length < 6) {
                  newPasswordInput.setCustomValidity("A nova senha deve ter pelo menos 6 caracteres.");
                  editUserForm.classList.add('was-validated');
+                 newPasswordInput.classList.add('is-invalid');
                  newPasswordInput.reportValidity();
                  return;
              }
             if (password !== confirm) {
                 confirmInput.setCustomValidity("As senhas não coincidem.");
                 editUserForm.classList.add('was-validated');
+                confirmInput.classList.add('is-invalid');
                 confirmInput.reportValidity();
                 return;
             }
         }
 
 
-        // Validação Bootstrap geral
+        // Validação Bootstrap geral (campos required, type=email)
         if (!editUserForm.checkValidity()) {
             editUserForm.classList.add('was-validated');
             return;
@@ -1384,7 +1418,7 @@ function initializeManageUsersPage() {
             editUserForm.classList.remove('was-validated');
             populateUserTable(); // Atualiza a tabela
             setTimeout(() => {
-                editUserModal.hide();
+                if(editUserModal) editUserModal.hide();
                 messageDiv.innerHTML = ''; // Limpa mensagem ao fechar
             }, 1500);
         } else {
@@ -1393,6 +1427,7 @@ function initializeManageUsersPage() {
             const emailInput = document.getElementById('editUserEmail');
              if (emailInput && messageDiv.innerHTML.includes("Email")) {
                  emailInput.classList.add('is-invalid');
+                  editUserForm.classList.add('was-validated'); // Re-aplica para mostrar erro
             }
         }
     });
@@ -1402,8 +1437,7 @@ function initializeManageUsersPage() {
         addUserForm.reset();
         addUserForm.classList.remove('was-validated');
         document.getElementById('addUserForm-message').innerHTML = '';
-        const emailInput = document.getElementById('addUserEmail');
-        if(emailInput) emailInput.classList.remove('is-invalid');
+        Array.from(addUserForm.elements).forEach(el => el.classList.remove('is-invalid'));
     });
 
     editUserModalEl.addEventListener('hidden.bs.modal', () => {
@@ -1412,8 +1446,8 @@ function initializeManageUsersPage() {
         document.getElementById('editUserForm-message').innerHTML = '';
         document.getElementById('editUserConfirmPassword').required = false; // Reseta obrigatoriedade
          document.getElementById('editUserPassword').setCustomValidity(""); // Limpa validação customizada
-        const emailInput = document.getElementById('editUserEmail');
-        if(emailInput) emailInput.classList.remove('is-invalid');
+         document.getElementById('editUserConfirmPassword').setCustomValidity(""); // Limpa validação customizada
+         Array.from(editUserForm.elements).forEach(el => el.classList.remove('is-invalid'));
     });
 
     //console.log("Lógica da página Gerenciar Usuários inicializada.");
@@ -1539,7 +1573,7 @@ function initializeForgotPasswordPage() {
             // Simula uma espera de rede
             setTimeout(() => {
                  // Exibe mensagem de sucesso (mesmo que o email não exista, por segurança)
-                 if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-success">Se um email correspondente (${email}) for encontrado em nosso sistema, um link para redefinição de senha será enviado. Verifique sua caixa de entrada e spam.</div>`;
+                 if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-success">Se um email correspondente (${sanitizeHTML(email)}) for encontrado em nosso sistema, um link para redefinição de senha será enviado. Verifique sua caixa de entrada e spam.</div>`; // Sanitiza o email exibido
 
                  if(submitButton) {
                     submitButton.disabled = false; // Reabilita o botão
@@ -1556,21 +1590,110 @@ function initializeForgotPasswordPage() {
     }
 }
 
+// --- Lógica da Página: Cadastro --- (NOVA FUNÇÃO)
+function initializeRegisterPage() {
+    const registerForm = document.getElementById('registerUserForm');
+    if (!registerForm) {
+        console.error("Formulário de cadastro (#registerUserForm) não encontrado.");
+        return;
+    }
+
+    registerForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const passwordInput = document.getElementById('password');
+        const confirmInput = document.getElementById('confirmPassword');
+        const messageDiv = document.getElementById('form-message');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const roleSelect = document.getElementById('profileSelect');
+        const submitButton = document.getElementById('registerSubmitButton');
+
+        messageDiv.innerHTML = ''; // Limpa mensagens
+        confirmInput.setCustomValidity(""); // Limpa validação customizada
+        registerForm.classList.remove('was-validated'); // Limpa validação visual
+        Array.from(registerForm.elements).forEach(el => el.classList.remove('is-invalid')); // Limpa campos
+
+        const password = passwordInput.value;
+        const confirm = confirmInput.value;
+
+        // Validação de senha
+        if (password !== confirm) {
+            confirmInput.setCustomValidity("As senhas não coincidem.");
+            registerForm.classList.add('was-validated');
+            confirmInput.classList.add('is-invalid');
+            confirmInput.reportValidity();
+            return;
+        }
+
+        // Validação Bootstrap geral (required, minlength, type=email, select)
+        if (!registerForm.checkValidity()) {
+            registerForm.classList.add('was-validated');
+            return;
+        }
+
+        // Coleta dados do novo usuário
+        const newUser = {
+            id: 'u' + Date.now(), // ID único
+            name: nameInput.value.trim(),
+            email: emailInput.value.trim().toLowerCase(),
+            role: roleSelect.value,
+            password: password, // Senha já validada
+            imageUrl: null // Imagem padrão
+        };
+
+        // Desabilita botão enquanto processa
+        if(submitButton) submitButton.disabled = true;
+
+        // Tenta adicionar o usuário (função addUser verifica duplicidade de email)
+        if (addUser(newUser)) {
+            messageDiv.innerHTML = `<div class="alert alert-success">Cadastro realizado com sucesso! Você será redirecionado para o login.</div>`;
+            registerForm.reset();
+            registerForm.classList.remove('was-validated');
+            console.log('Novo usuário registrado:', newUser.email);
+
+            // Redireciona para o login após um tempo
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 2500); // Espera 2.5 segundos
+
+        } else {
+            // addUser já exibiu a mensagem de erro (email duplicado)
+            const emailField = document.getElementById('email');
+            if (emailField && messageDiv.innerHTML.includes("Email")) {
+                emailField.classList.add('is-invalid');
+                registerForm.classList.add('was-validated'); // Re-aplica was-validated
+            }
+            // Reabilita botão se falhou
+            if(submitButton) submitButton.disabled = false;
+        }
+    });
+    //console.log("Lógica da página de Cadastro inicializada.");
+}
+
+
 // ========= FUNÇÕES AUXILIARES E CRUD (Incluindo Novas Financeiras) =========
 
 // --- Funções CRUD Usuário ---
 function populateUserTable() {
     const userListBody = document.getElementById('user-list-body');
-    if (!userListBody) return;
+    if (!userListBody) {
+         //console.warn("Elemento #user-list-body não encontrado para popular tabela.");
+         return;
+    }
 
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const loggedInUserId = localStorage.getItem('userId'); // Pega o ID do usuário logado
     userListBody.innerHTML = ''; // Limpa a tabela
 
     if (users.length === 0) {
-        userListBody.innerHTML = '<tr><td colspan="4" class="text-center">Nenhum usuário cadastrado.</td></tr>';
+        userListBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted fst-italic p-3">Nenhum usuário cadastrado.</td></tr>';
         return;
     }
+
+    // Ordena usuários por nome (opcional)
+    users.sort((a, b) => a.name.localeCompare(b.name));
 
     users.forEach(user => {
         const tr = document.createElement('tr');
@@ -1595,15 +1718,15 @@ function populateUserTable() {
             : 'title="Excluir usuário"';
 
         tr.innerHTML = `
-            <td>${user.name}</td>
-            <td>${user.email}</td>
+            <td>${sanitizeHTML(user.name)}</td>
+            <td>${sanitizeHTML(user.email)}</td>
             <td>${roleText}</td>
             <td class="text-center">
                 <button class="btn btn-sm btn-warning me-2 edit-user-btn" data-userid="${user.id}" ${isSelf ? 'data-is-self="true"' : ''} ${editButtonAttrs}>
-                    <i class="bi bi-pencil-fill"></i> Alterar
+                    <i class="bi bi-pencil-fill"></i><span class="d-none d-md-inline ms-1">Alterar</span>
                 </button>
                 <button class="btn btn-sm btn-danger delete-user-btn" data-userid="${user.id}" ${isSelf ? 'data-is-self="true"' : ''} ${deleteButtonAttrs}>
-                    <i class="bi bi-trash-fill"></i> Excluir
+                    <i class="bi bi-trash-fill"></i><span class="d-none d-md-inline ms-1">Excluir</span>
                 </button>
             </td>
         `;
@@ -1614,12 +1737,13 @@ function populateUserTable() {
 
 function addUser(newUser) {
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const messageDiv = document.getElementById('addUserForm-message'); // Div de mensagem no modal
+    // Tenta pegar a div de mensagem do modal de adicionar ou da página de registro
+    const messageDiv = document.getElementById('addUserForm-message') || document.getElementById('form-message');
 
     // Verifica se o email já existe
     if (users.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
         console.error("Erro ao adicionar usuário: Email já cadastrado.", newUser.email);
-        if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O email '${newUser.email}' já está cadastrado.</div>`;
+        if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O email '${sanitizeHTML(newUser.email)}' já está cadastrado.</div>`; // Sanitiza email exibido
         return false; // Indica falha
     }
 
@@ -1627,7 +1751,7 @@ function addUser(newUser) {
     users.push(newUser);
     // Salva o array atualizado no localStorage
     localStorage.setItem('users', JSON.stringify(users));
-    console.log('Novo usuário adicionado com sucesso:', newUser);
+    console.log('Novo usuário adicionado/registrado com sucesso:', newUser);
     return true; // Indica sucesso
 }
 
@@ -1647,7 +1771,7 @@ function updateUser(updatedUser) {
     // Verifica se o novo email já está em uso por OUTRO usuário
     if (users.some((u, index) => u.email.toLowerCase() === updatedUser.email.toLowerCase() && index !== userIndex)) {
         console.error("Erro ao atualizar usuário: Email já cadastrado por outro usuário.", updatedUser.email);
-        if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O email '${updatedUser.email}' já pertence a outro usuário.</div>`;
+        if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O email '${sanitizeHTML(updatedUser.email)}' já pertence a outro usuário.</div>`; // Sanitiza email
         return false;
     }
 
@@ -1680,23 +1804,31 @@ function deleteUser(userId) {
     //console.log(`Tentando excluir usuário ID: ${userId}`);
     let users = JSON.parse(localStorage.getItem('users') || '[]');
     const initialLength = users.length;
+    const userToDelete = users.find(u => u.id === userId); // Encontra para pegar nome/email para confirmação
+
+    if (!userToDelete) {
+         console.error(`Erro: Usuário ${userId} não encontrado para exclusão.`);
+         alert(`Erro: Não foi possível encontrar o usuário ${userId} para excluir.`);
+         return;
+    }
 
     // Filtra o array, mantendo todos os usuários EXCETO o que tem o ID correspondente
     users = users.filter(user => user.id !== userId);
 
-    // Verifica se algum usuário foi removido
+    // Verifica se algum usuário foi removido (confirmação extra)
     if (users.length < initialLength) {
         localStorage.setItem('users', JSON.stringify(users));
-        console.log(`Usuário ${userId} excluído com sucesso.`);
+        console.log(`Usuário ${userId} (${userToDelete.email}) excluído com sucesso.`);
         // Atualiza a tabela na interface se estiver na página de gerenciamento
         if(document.getElementById('user-list-body')) {
              populateUserTable();
         }
-        // Pode adicionar um feedback visual aqui, se desejado
-         alert(`Usuário ${userId} foi excluído.`);
+        // Mostra feedback
+         alert(`Usuário "${sanitizeHTML(userToDelete.name)}" (${sanitizeHTML(userToDelete.email)}) foi excluído.`);
     } else {
-        console.error(`Erro: Usuário ${userId} não encontrado para exclusão.`);
-        alert(`Erro: Não foi possível encontrar o usuário ${userId} para excluir.`);
+        // Este caso não deveria ocorrer se userToDelete foi encontrado, mas por segurança
+        console.error(`Erro inesperado: Usuário ${userId} encontrado mas não removido do array.`);
+        alert(`Erro inesperado ao tentar excluir o usuário ${userId}.`);
     }
 }
 
@@ -1779,23 +1911,31 @@ function freeUpTable(tableId) {
         localStorage.setItem('tables', JSON.stringify(tables));
         console.log(`Mesa ${tableNumber} (ID: ${tableId}) marcada como LIVRE.`);
 
-        // Remove TODOS os pedidos associados a esta mesa
+        // ATENÇÃO: Remove ou Cancela os pedidos associados?
+        // Abordagem atual: REMOVER todos os pedidos da mesa.
+        // Alternativa: Marcar pedidos como 'cancelado' ou 'fechado_sem_pagar'.
+        // Vamos manter a REMOÇÃO por enquanto, conforme o código original.
         const initialOrderLength = orders.length;
         orders = orders.filter(order => order.tableId !== tableId);
 
         if (orders.length < initialOrderLength) {
             localStorage.setItem('orders', JSON.stringify(orders));
-            console.log(`Todos os ${initialOrderLength - orders.length} pedido(s) da mesa ${tableId} foram removidos.`);
+            console.log(`Todos os ${initialOrderLength - orders.length} pedido(s) da mesa ${tableId} foram REMOVIDOS.`);
         } else {
             //console.log(`Nenhum pedido encontrado para a mesa ${tableId} para remover.`);
         }
 
-        displayTables(); // Atualiza a visualização na página de mesas
-        // Se estiver na página de pedidos, atualiza a tabela lá também
-        if(document.getElementById('orders-table-body')) {
-             displayOrdersTable();
+        // Atualiza interfaces
+        if(document.getElementById('tables-container')) {
+            displayTables(); // Atualiza a visualização na página de mesas
         }
-        updateDashboardCards(); // Atualiza os contadores no dashboard
+        if(document.getElementById('orders-table-body')) {
+             displayOrdersTable(); // Atualiza a tabela na página de Gerenciar Pedidos
+        }
+        if(document.getElementById('dashboard-cards')) {
+             updateDashboardCards(); // Atualiza os contadores no dashboard
+        }
+
         // ATENÇÃO: Liberar a mesa NÃO adiciona ao faturamento diário nesta lógica.
         // Apenas a geração da conta (openReceiptModal) faz isso.
     } else {
@@ -1809,18 +1949,20 @@ function addTable(tableNumber) {
     let tables = JSON.parse(localStorage.getItem('tables') || '[]');
     const messageDiv = document.getElementById('addTableForm-message'); // Div de mensagem no modal
 
+    // Verifica se o número é válido (maior que zero e inteiro)
+     if (!Number.isInteger(tableNumber) || tableNumber <= 0) {
+          console.error(`Erro ao adicionar mesa: Número inválido (${tableNumber}).`);
+          if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O número da mesa deve ser um inteiro maior que zero.</div>`;
+          return false; // Indica falha
+     }
+
     // Verifica se já existe uma mesa com esse número
     if (tables.some(t => t.number === tableNumber)) {
         console.error(`Erro ao adicionar mesa: Número ${tableNumber} já existe.`);
         if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: Já existe uma mesa com o número ${tableNumber}.</div>`;
         return false; // Indica falha
     }
-     // Verifica se o número é válido (maior que zero)
-     if (tableNumber <= 0) {
-          console.error(`Erro ao adicionar mesa: Número inválido (${tableNumber}).`);
-          if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O número da mesa deve ser maior que zero.</div>`;
-          return false; // Indica falha
-     }
+
 
     // Cria o objeto da nova mesa
     const newTable = {
@@ -1850,8 +1992,9 @@ function formatImageName(name) {
     return String(name) // Garante que é string
         .toLowerCase() // Converte para minúsculas
         .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos
+        .replace(/[^\w\s-]/g, '') // Remove caracteres especiais exceto espaço e hífen
         .replace(/\s+/g, '_') // Substitui espaços (um ou mais) por underscore
-        .replace(/[^a-z0-9_]/g, '') // Remove caracteres que não sejam letras minúsculas, números ou underscore
+        .replace(/__/g, '_') // Remove underscores duplicados
         .substring(0, 50); // Limita o tamanho para evitar nomes muito longos
 }
 
@@ -1900,6 +2043,7 @@ function displayDishes(userRole) {
         const indexA = categoryOrder.indexOf(a);
         const indexB = categoryOrder.indexOf(b);
         // Coloca categorias não listadas (como 'Outros') no final
+        if (indexA === -1 && indexB === -1) return a.localeCompare(b); // Ordena alfabeticamente não listadas
         if (indexA === -1) return 1;
         if (indexB === -1) return -1;
         return indexA - indexB;
@@ -1907,18 +2051,22 @@ function displayDishes(userRole) {
 
     // Itera sobre as categorias ordenadas e cria a estrutura HTML
     sortedCategories.forEach(category => {
+        const categorySection = document.createElement('div');
+        categorySection.className = 'col-12 mb-4'; // Ocupa toda a largura e adiciona margem inferior
+
         const categoryHeader = document.createElement('h2');
         categoryHeader.className = 'category-header';
         categoryHeader.textContent = category;
-        container.appendChild(categoryHeader);
+        categorySection.appendChild(categoryHeader);
 
         const categoryRow = document.createElement('div');
-        categoryRow.className = 'row g-3 align-items-stretch'; // g-3 para espaçamento, align-items-stretch para cards de mesma altura
+        // Adiciona 'row-cols-*' para controlar quantos cards por linha
+        categoryRow.className = 'row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-3 align-items-stretch';
 
         // Ordena os pratos dentro da categoria por nome
         groupedDishes[category].sort((a,b) => a.name.localeCompare(b.name)).forEach(dish => {
             const colDiv = document.createElement('div');
-            colDiv.className = 'col-12 col-md-6 col-lg-4 col-xl-3 d-flex'; // Colunas responsivas, d-flex para align-items-stretch funcionar
+            colDiv.className = 'col d-flex'; // 'col' funciona com 'row-cols-*', d-flex para stretch
 
              // --- Botões de Ação (Visíveis apenas para Admin) ---
              let actionButtonsHtml = '';
@@ -1928,7 +2076,7 @@ function displayDishes(userRole) {
                          <button class="btn btn-sm btn-outline-secondary edit-dish-btn" data-id="${dish.id}" title="Editar Prato (Não implementado)">
                              <i class="bi bi-pencil"></i> Editar
                          </button>
-                         <button class="btn btn-sm btn-outline-danger delete-dish-btn" data-id="${dish.id}" title="Excluir Prato (Não implementado)">
+                         <button class="btn btn-sm btn-outline-danger delete-dish-btn" data-id="${dish.id}" title="Excluir Prato">
                              <i class="bi bi-trash"></i> Excluir
                          </button>
                      </div>
@@ -1942,9 +2090,9 @@ function displayDishes(userRole) {
                 // Tenta carregar a imagem. Se falhar (onerror), mostra o placeholder.
                 imageHtml = `
                     <div class="dish-image-container">
-                        <img src="${dish.imageUrl}" alt="${dish.name}" class="dish-image" loading="lazy"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="dish-image-placeholder" style="display: none;"><i class="bi bi-image-fill"></i></div>
+                        <img src="${sanitizeAttribute(dish.imageUrl)}" alt="${sanitizeAttribute(dish.name)}" class="dish-image" loading="lazy"
+                             onerror="this.style.display='none'; this.parentElement.querySelector('.dish-image-placeholder').style.display='flex';">
+                        ${placeholderIcon} <!-- Mantém o placeholder oculto inicialmente -->
                     </div>`;
             } else {
                 // Se não há URL de imagem, mostra diretamente o placeholder.
@@ -1955,21 +2103,22 @@ function displayDishes(userRole) {
             const cardHtml = `
                 <div class="dish-card h-100 d-flex flex-column"> <!-- h-100 e flex-column para ocupar altura e alinhar botões -->
                     ${imageHtml}
-                    <div class="dish-details flex-grow-1"> <!-- flex-grow-1 para empurrar ações para baixo -->
+                    <div class="dish-details flex-grow-1 p-3"> <!-- Adiciona padding interno -->
                         <div class="d-flex justify-content-between align-items-start mb-1">
-                            <span class="dish-name">${dish.name}</span>
-                            <span class="dish-price">R$ ${dish.price.toFixed(2).replace('.',',')}</span>
+                            <span class="dish-name flex-grow-1 me-2">${sanitizeHTML(dish.name)}</span>
+                            <span class="dish-price flex-shrink-0">R$ ${dish.price.toFixed(2).replace('.',',')}</span>
                         </div>
-                        <p class="dish-description">${dish.description || 'Sem descrição.'}</p>
-                        <span class="dish-category mt-auto">${dish.category || 'Sem Categoria'}</span> <!-- mt-auto aqui não funciona bem com flex-grow, ajustado abaixo -->
+                        <p class="dish-description">${sanitizeHTML(dish.description) || '<i class="text-muted">Sem descrição.</i>'}</p>
+                        <span class="dish-category mt-auto">${sanitizeHTML(dish.category || 'Sem Categoria')}</span> <!-- mt-auto aqui funciona melhor com flex-grow -->
                     </div>
-                     ${actionButtonsHtml} <!-- Botões inseridos fora de dish-details -->
+                     ${actionButtonsHtml} <!-- Botões inseridos fora de dish-details, dentro de dish-card -->
                 </div>`;
 
             colDiv.innerHTML = cardHtml;
             categoryRow.appendChild(colDiv);
         });
-        container.appendChild(categoryRow);
+        categorySection.appendChild(categoryRow);
+        container.appendChild(categorySection); // Adiciona a seção completa (header + row)
     });
      //console.log(`Visualização dos pratos atualizada para perfil: ${userRole}.`);
 }
@@ -1980,17 +2129,21 @@ function addDish(newDish) {
     const messageDiv = document.getElementById('addDishForm-message');
 
     // Verifica se já existe um prato com o mesmo nome (case-insensitive)
-    if (dishes.some(d => d.name.toLowerCase() === newDish.name.toLowerCase())) {
+    if (dishes.some(d => d.name.trim().toLowerCase() === newDish.name.trim().toLowerCase())) {
         console.warn(`Erro ao adicionar prato: Nome "${newDish.name}" já existe.`);
         if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: Já existe um prato cadastrado com este nome.</div>`;
         return false; // Falha
     }
-     // Validações adicionais podem ser feitas aqui (ex: preço > 0)
-     if (newDish.price < 0) {
+     // Validações adicionais podem ser feitas aqui (ex: preço >= 0)
+     if (newDish.price < 0 || isNaN(newDish.price)) {
           console.warn(`Erro ao adicionar prato: Preço inválido (${newDish.price}).`);
-          if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O preço do prato não pode ser negativo.</div>`;
-          const priceInput = document.getElementById('addDishPrice');
-          if (priceInput) priceInput.classList.add('is-invalid');
+          if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: O preço do prato não pode ser negativo ou inválido.</div>`;
+          return false;
+     }
+     // Verifica se a categoria foi selecionada
+     if (!newDish.category) {
+          console.warn(`Erro ao adicionar prato: Categoria não selecionada.`);
+          if(messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro: Por favor, selecione uma categoria.</div>`;
           return false;
      }
 
@@ -2010,29 +2163,54 @@ function editDish(dishId) {
     // 4. Atualizar a exibição dos pratos na página (chamar displayDishes).
     console.log(`(Placeholder) Função editDish chamada para ID: ${dishId}`);
     alert(`Funcionalidade "Editar Prato ${dishId}" ainda não implementada.\nVocê precisaria de um novo modal e formulário de edição.`);
+    // Exemplo básico de como seria o início:
+    /*
+    const dishes = JSON.parse(localStorage.getItem('dishes') || '[]');
+    const dishToEdit = dishes.find(d => d.id === dishId);
+    if (dishToEdit) {
+        // Preencher campos do modal de edição (ex: #editDishName, #editDishPrice, etc.)
+        document.getElementById('editDishId').value = dishToEdit.id;
+        document.getElementById('editDishName').value = dishToEdit.name;
+        // ... preencher outros campos ...
+        // Abrir o modal de edição
+        // const editDishModal = new bootstrap.Modal(document.getElementById('editDishModal'));
+        // editDishModal.show();
+    } else {
+        alert("Erro: Prato não encontrado para edição.");
+    }
+    */
 }
 
 
 function deleteDish(dishId) {
-    // Placeholder - Implementação básica
+    // Implementação da exclusão
     //console.log(`Tentando excluir prato ID: ${dishId}`);
-    if (confirm(`Tem certeza que deseja excluir o prato ID ${dishId}?\nEsta ação não pode ser desfeita.`)) {
-        let dishes = JSON.parse(localStorage.getItem('dishes') || '[]');
+    let dishes = JSON.parse(localStorage.getItem('dishes') || '[]');
+    const dishToDelete = dishes.find(d => d.id === dishId);
+
+    if (!dishToDelete) {
+         console.error(`Erro: Prato ${dishId} não encontrado para exclusão.`);
+         alert(`Erro: Prato ${dishId} não encontrado.`);
+         return;
+    }
+
+    if (confirm(`Tem certeza que deseja excluir o prato "${sanitizeHTML(dishToDelete.name)}"?\nEsta ação não pode ser desfeita.`)) {
         const initialLength = dishes.length;
         dishes = dishes.filter(d => d.id !== dishId);
 
         if (dishes.length < initialLength) {
             localStorage.setItem('dishes', JSON.stringify(dishes));
-            console.log(`Prato ${dishId} excluído do localStorage.`);
+            console.log(`Prato ${dishId} (${dishToDelete.name}) excluído do localStorage.`);
             // Atualiza a visualização na página
             const userRole = getUserRole(); // Precisa saber o perfil para redesenhar corretamente
              if(document.getElementById('dishes-list-container')) {
                  displayDishes(userRole);
              }
-            alert(`Prato ${dishId} foi excluído.`);
+            alert(`Prato "${sanitizeHTML(dishToDelete.name)}" foi excluído.`);
         } else {
-            console.error(`Erro: Prato ${dishId} não encontrado para exclusão.`);
-            alert(`Erro: Prato ${dishId} não encontrado.`);
+            // Deveria ter sido removido se encontrado antes
+            console.error(`Erro inesperado ao tentar excluir o prato ${dishId}.`);
+            alert(`Erro inesperado ao excluir o prato.`);
         }
     } else {
          //console.log(`Exclusão do prato ${dishId} cancelada.`);
@@ -2050,6 +2228,7 @@ function populateDishSelect() {
 
     const dishes = JSON.parse(localStorage.getItem('dishes') || '[]');
     select.innerHTML = '<option selected disabled value="">Selecione um item...</option>'; // Opção padrão
+    select.disabled = false; // Habilita por padrão
 
     if (dishes.length > 0) {
         // Agrupa por categoria para <optgroup>
@@ -2060,11 +2239,12 @@ function populateDishSelect() {
             return acc;
         }, {});
 
-        // Ordena categorias
+        // Ordena categorias (mesma ordem da página de pratos)
         const categoryOrder = ["Entradas", "Saladas", "Massas", "Aves", "Carnes", "Peixes", "Bebidas", "Sobremesas", "Outros"];
         const sortedCategories = Object.keys(groupedDishes).sort((a, b) => {
             const indexA = categoryOrder.indexOf(a);
             const indexB = categoryOrder.indexOf(b);
+             if (indexA === -1 && indexB === -1) return a.localeCompare(b);
             if (indexA === -1) return 1;
             if (indexB === -1) return -1;
             return indexA - indexB;
@@ -2074,7 +2254,7 @@ function populateDishSelect() {
         sortedCategories.forEach(category => {
             const optgroup = document.createElement('optgroup');
             optgroup.label = category;
-            // Ordena pratos dentro da categoria
+            // Ordena pratos dentro da categoria por nome
             groupedDishes[category].sort((a,b) => a.name.localeCompare(b.name)).forEach(dish => {
                 const option = document.createElement('option');
                 option.value = dish.id; // Valor é o ID do prato
@@ -2100,12 +2280,17 @@ function openOrderModal(tableId, orderModalInstance) {
     const tables = JSON.parse(localStorage.getItem('tables') || '[]');
     const table = tables.find(t => t.id === tableId);
 
-    if (table) {
+    if (table && orderModalInstance) {
         // Preenche informações da mesa no modal
-        document.getElementById('orderModalTableNumber').textContent = table.number;
-        document.getElementById('orderModalPeopleCount').textContent = table.people || '?';
-        document.getElementById('orderModalTableId').value = table.id; // Guarda o ID da mesa no modal
-        document.getElementById('orderModal-message').innerHTML = ''; // Limpa mensagens
+        const tableNumSpan = document.getElementById('orderModalTableNumber');
+        const peopleCountSpan = document.getElementById('orderModalPeopleCount');
+        const tableIdInput = document.getElementById('orderModalTableId');
+        const msgDiv = document.getElementById('orderModal-message');
+
+        if(tableNumSpan) tableNumSpan.textContent = table.number;
+        if(peopleCountSpan) peopleCountSpan.textContent = table.people || '?';
+        if(tableIdInput) tableIdInput.value = table.id; // Guarda o ID da mesa no modal
+        if(msgDiv) msgDiv.innerHTML = ''; // Limpa mensagens
 
         // Reseta a lista de itens temporários
         tempOrderItems = [];
@@ -2118,8 +2303,8 @@ function openOrderModal(tableId, orderModalInstance) {
         orderModalInstance.show();
          //console.log(`Modal de pedido aberto para Mesa ${table.number} (ID: ${tableId})`);
     } else {
-        console.error("Erro ao abrir modal de pedido: Mesa não encontrada.", tableId);
-        alert("Erro: Mesa não encontrada.");
+        console.error("Erro ao abrir modal de pedido: Mesa não encontrada ou instância do modal inválida.", {tableId, tableFound: !!table, modalOk: !!orderModalInstance});
+        alert("Erro ao abrir detalhes da mesa.");
     }
 }
 
@@ -2129,7 +2314,15 @@ function addItemToTempList() {
     const quantityInput = document.getElementById('itemQuantity');
     const observationInput = document.getElementById('itemObservation');
     const messageDiv = document.getElementById('orderModal-message');
+
+     if (!dishSelect || !quantityInput || !observationInput || !messageDiv) {
+          console.error("Elementos do formulário de adicionar item não encontrados.");
+          return;
+     }
+
     messageDiv.innerHTML = ''; // Limpa mensagens anteriores
+    dishSelect.classList.remove('is-invalid');
+    quantityInput.classList.remove('is-invalid');
 
     const dishId = dishSelect.value;
     const quantity = parseInt(quantityInput.value, 10);
@@ -2138,11 +2331,13 @@ function addItemToTempList() {
     // Validações
     if (!dishId) {
         messageDiv.innerHTML = `<div class="alert alert-warning small p-2">Por favor, selecione um item.</div>`;
+        dishSelect.classList.add('is-invalid');
         dishSelect.focus();
         return;
     }
     if (isNaN(quantity) || quantity < 1) {
         messageDiv.innerHTML = `<div class="alert alert-warning small p-2">Quantidade inválida. Deve ser 1 ou mais.</div>`;
+        quantityInput.classList.add('is-invalid');
         quantityInput.focus();
         quantityInput.select();
         return;
@@ -2151,6 +2346,7 @@ function addItemToTempList() {
      const MAX_QUANTITY = 99;
      if (quantity > MAX_QUANTITY) {
          messageDiv.innerHTML = `<div class="alert alert-warning small p-2">Quantidade máxima por item é ${MAX_QUANTITY}.</div>`;
+         quantityInput.classList.add('is-invalid');
          quantityInput.focus();
          quantityInput.select();
          return;
@@ -2163,6 +2359,13 @@ function addItemToTempList() {
     const dishPrice = parseFloat(selectedOption.dataset.price);
     // Pega a categoria do <optgroup> ou do dataset da option
     const dishCategory = selectedOption.closest('optgroup')?.label || selectedOption.dataset.category || 'Outros';
+
+     // Verifica se o preço é válido (caso dataset esteja ausente ou inválido)
+     if (isNaN(dishPrice)) {
+          console.error("Erro: Preço do prato selecionado é inválido ou não encontrado.", selectedOption);
+          messageDiv.innerHTML = `<div class="alert alert-danger small p-2">Erro interno: Preço do item inválido.</div>`;
+          return;
+     }
 
     // Verifica se já existe um item IGUAL (mesmo ID e mesma observação) na lista temporária
     const existingIndex = tempOrderItems.findIndex(item => item.dishId === dishId && item.observation === observation);
@@ -2215,7 +2418,7 @@ function displayTempItems() {
     // Cria um elemento para cada item na lista temporária
     tempOrderItems.forEach((item, index) => {
         const itemElement = document.createElement('div');
-        itemElement.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap py-1'; // flex-wrap para observação quebrar linha
+        itemElement.className = 'list-group-item d-flex justify-content-between align-items-center flex-wrap py-1 px-2'; // Reduz padding
 
         // Inclui a observação se existir
         const observationHtml = item.observation
@@ -2267,8 +2470,15 @@ function removeItemFromTempList(dishId, observation = '') {
 
 
 function sendOrderToKitchen() {
-    const tableId = document.getElementById('orderModalTableId').value;
+    const tableId = document.getElementById('orderModalTableId')?.value;
     const messageDiv = document.getElementById('orderModal-message');
+    const sendButton = document.getElementById('sendOrderToKitchenBtn');
+
+    if(!messageDiv || !sendButton) {
+        console.error("Elementos do modal de pedido (mensagem ou botão) não encontrados.");
+        return;
+    }
+
     messageDiv.innerHTML = ''; // Limpa mensagens
 
     if (!tableId) {
@@ -2294,6 +2504,11 @@ function sendOrderToKitchen() {
 
     let orders = JSON.parse(localStorage.getItem('orders') || '[]');
 
+    // Desabilita botão para evitar cliques duplos
+    sendButton.disabled = true;
+    sendButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Enviando...';
+
+
     // Cria o novo objeto de pedido
     const newOrder = {
         orderId: 'o' + Date.now(), // ID único do pedido
@@ -2316,22 +2531,27 @@ function sendOrderToKitchen() {
 
     // Limpa a lista temporária e atualiza a interface
     tempOrderItems = [];
-    displayTempItems(); // Limpa a seção de itens novos
+    displayTempItems(); // Limpa a seção de itens novos (isso também reabilitará o botão)
     displayOngoingOrders(tableId); // Atualiza a seção de histórico
 
     // Atualiza outras partes da interface se necessário
     if(document.getElementById('orders-table-body')) {
          displayOrdersTable(); // Atualiza a tabela na página de Gerenciar Pedidos
     }
-    updateDashboardCards(); // Atualiza os contadores do dashboard (pedidos pendentes)
+    if(document.getElementById('dashboard-cards')) {
+        updateDashboardCards(); // Atualiza os contadores do dashboard (pedidos pendentes)
+    }
     // O faturamento NÃO é atualizado aqui, apenas na geração da conta.
 
     // Exibe mensagem de sucesso no modal
     messageDiv.innerHTML = `
         <div class="alert alert-success alert-dismissible fade show small p-2" role="alert">
             Pedido enviado com sucesso!
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-sm p-1" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>`;
+
+    // Reabilita o botão (a função displayTempItems já faz isso ao esvaziar a lista)
+    sendButton.innerHTML = '<i class="bi bi-send-fill"></i> Enviar Novo Pedido para Cozinha';
 }
 
 
@@ -2364,18 +2584,20 @@ function displayOngoingOrders(tableId) {
     tableOrders.forEach((order, index) => {
         const accordionId = `order-${order.orderId}`;
         // Formata a lista de itens do pedido
-        const itemsHtml = order.items.map(item =>
-            `<li>
-                ${item.quantity}x ${sanitizeHTML(item.name)}
-                ${item.observation ? `<i class='text-muted small d-block ms-2'>- Obs: ${sanitizeHTML(item.observation)}</i>` : ''}
-             </li>`
-        ).join('');
+        const itemsHtml = order.items && order.items.length > 0
+            ? order.items.map(item =>
+                `<li>
+                    ${item.quantity}x ${sanitizeHTML(item.name)}
+                    ${item.observation ? `<i class='text-muted small d-block ms-2'>- Obs: ${sanitizeHTML(item.observation)}</i>` : ''}
+                 </li>`
+            ).join('')
+            : '<li><i class="text-muted">Nenhum item neste pedido específico.</i></li>';
 
         const statusBadge = createStatusBadge(order.status); // Cria o badge de status
         const createdDate = new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        // Define se o accordion começa colapsado (ex: pedidos concluídos)
+        // Define se o accordion começa colapsado (apenas concluídos)
         const isCollapsed = order.status === 'concluido';
-        // Define se o accordion começa expandido (ex: não concluídos)
+        // Define se o accordion começa expandido (não concluídos)
         const isExpanded = !isCollapsed;
 
         // Cria o HTML do item do accordion
@@ -2395,7 +2617,7 @@ function displayOngoingOrders(tableId) {
                     <div class="accordion-body">
                         <small class="d-block mb-2"><strong>Enviado por:</strong> ${sanitizeHTML(order.createdByUserName || 'N/A')}</small>
                         <ul class="list-unstyled mb-0">
-                            ${itemsHtml || '<li>Nenhum item neste pedido.</li>'}
+                            ${itemsHtml}
                         </ul>
                         <!-- Adicionar botões de ação aqui se necessário (ex: reimprimir comanda) -->
                     </div>
@@ -2439,16 +2661,19 @@ function displayOrdersTable() {
         // Compara apenas a parte da data (YYYY-MM-DD)
         filteredOrders = filteredOrders.filter(order => {
              try {
-                 return new Date(order.createdAt).toISOString().slice(0, 10) === filterDate;
+                 // Garante que createdAt seja uma data válida antes de comparar
+                 const orderDate = new Date(order.createdAt);
+                 if (isNaN(orderDate.getTime())) return false; // Ignora data inválida
+                 return orderDate.toISOString().slice(0, 10) === filterDate;
              } catch (e) {
-                 console.warn(`Data inválida no pedido ${order.orderId}: ${order.createdAt}`);
+                 console.warn(`Data inválida no pedido ${order.orderId}: ${order.createdAt}`, e);
                  return false; // Ignora pedidos com data inválida
              }
         });
     }
     if (filterCategory) {
         filteredOrders = filteredOrders.filter(order =>
-            order.items.some(item => item.category === filterCategory)
+             order.items && order.items.some(item => item.category === filterCategory)
         );
     }
     if (filterStatus) {
@@ -2473,43 +2698,52 @@ function displayOrdersTable() {
     // Cria as linhas da tabela para cada pedido
     filteredOrders.forEach(order => {
         const tr = document.createElement('tr');
-        const total = order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-        const createdDate = new Date(order.createdAt).toLocaleString('pt-BR');
+        const total = order.items ? order.items.reduce((sum, item) => sum + (item.quantity * item.price), 0) : 0;
+        const createdDate = order.createdAt ? new Date(order.createdAt).toLocaleString('pt-BR') : 'Data Inválida';
         const statusBadge = createStatusBadge(order.status);
 
         // Formata a lista de itens e observações
-        const itemsSummary = order.items.map(i =>
-            `${i.quantity}x ${sanitizeHTML(i.name)}` +
-            (i.observation ? ` <i class='bi bi-dot text-muted'></i> <small class='text-muted fst-italic'>(${sanitizeHTML(i.observation)})</small>` : '')
-        ).join('<br>');
+        const itemsSummary = order.items && order.items.length > 0
+            ? order.items.map(i =>
+                `${i.quantity}x ${sanitizeHTML(i.name)}` +
+                (i.observation ? ` <i class='bi bi-dot text-muted'></i> <small class='text-muted fst-italic'>(${sanitizeHTML(i.observation)})</small>` : '')
+              ).join('<br>')
+            : '<i class="text-muted">Vazio</i>';
 
         // Define os botões de ação com base no status
         let actionButtons = '';
-        if (order.status === 'solicitado') {
-            actionButtons = `
-                <button class="btn btn-sm btn-warning status-change-btn" data-order-id="${order.orderId}" data-new-status="preparacao" title="Marcar como Em Preparação">
-                    <i class="bi bi-arrow-right-circle"></i> Preparar
-                </button>`;
-        } else if (order.status === 'preparacao') {
-            actionButtons = `
-                <button class="btn btn-sm btn-secondary revert-status-btn me-1" data-order-id="${order.orderId}" title="Reverter para Solicitado">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                </button>
-                <button class="btn btn-sm btn-success status-change-btn" data-order-id="${order.orderId}" data-new-status="concluido" title="Marcar como Concluído">
-                    <i class="bi bi-check-circle"></i> Concluir
-                </button>`;
-        } else if (order.status === 'concluido') {
-            // Para concluído, pode mostrar um texto ou nenhum botão
-            actionButtons = `<span class="text-success fw-bold"><i class="bi bi-check-all"></i> Concluído</span>`;
-        }
-        // Adicionar status 'cancelado' se existir
+        const userRole = getUserRole(); // Pega o perfil para habilitar/desabilitar
+
+        // Botões visíveis para Admin ou Cozinha (com permissão para mudar status)
+        if (userRole === 'admin' || userRole === 'kitchen') {
+             if (order.status === 'solicitado') {
+                 actionButtons = `
+                     <button class="btn btn-sm btn-warning status-change-btn" data-order-id="${order.orderId}" data-new-status="preparacao" title="Marcar como Em Preparação">
+                         <i class="bi bi-arrow-right-circle"></i> Preparar
+                     </button>`;
+             } else if (order.status === 'preparacao') {
+                 actionButtons = `
+                     <button class="btn btn-sm btn-secondary revert-status-btn me-1" data-order-id="${order.orderId}" title="Reverter para Solicitado">
+                         <i class="bi bi-arrow-counterclockwise"></i>
+                     </button>
+                     <button class="btn btn-sm btn-success status-change-btn" data-order-id="${order.orderId}" data-new-status="concluido" title="Marcar como Concluído">
+                         <i class="bi bi-check-circle"></i> Concluir
+                     </button>`;
+             } else if (order.status === 'concluido') {
+                 // Para concluído, mostra texto (sem ações de status)
+                  actionButtons = `<span class="text-success fw-bold"><i class="bi bi-check-all"></i> Concluído</span>`;
+             }
+         } else { // Garçom ou outro perfil sem permissão de alterar status
+              actionButtons = `<span class="text-muted small"><i>Sem ações</i></span>`;
+         }
+
 
         tr.innerHTML = `
-            <td>#${order.orderId.substring(order.orderId.length - 5)}</td> <!-- ID Curto -->
-            <td>${order.tableNumber}</td>
+            <td>#${order.orderId ? order.orderId.substring(order.orderId.length - 5) : 'N/A'}</td> <!-- ID Curto -->
+            <td>${sanitizeHTML(order.tableNumber || '?')}</td>
             <td>${statusBadge}</td>
             <td>${sanitizeHTML(order.createdByUserName || 'Desconhecido')}</td>
-            <td>${itemsSummary || '<i class="text-muted">Vazio</i>'}</td>
+            <td>${itemsSummary}</td>
             <td class="text-end fw-bold">R$ ${total.toFixed(2).replace('.', ',')}</td>
             <td>${createdDate}</td>
             <td class="text-center">
@@ -2532,19 +2766,19 @@ function displayOrdersTable() {
  */
 function createStatusBadge(status) {
     let badgeClass = 'bg-secondary'; // Cor padrão
-    let statusText = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Desconhecido'; // Texto padrão
+    let statusText = status ? String(status).charAt(0).toUpperCase() + String(status).slice(1) : 'Desconhecido'; // Texto padrão
 
     switch (status) {
         case 'solicitado':
-            badgeClass = 'badge-status-solicitado'; // Classe CSS para vermelho
+            badgeClass = 'badge-status-solicitado'; // Classe CSS específica
             statusText = 'Solicitado';
             break;
         case 'preparacao':
-            badgeClass = 'badge-status-preparacao'; // Classe CSS para amarelo
+            badgeClass = 'badge-status-preparacao'; // Classe CSS específica
             statusText = 'Em Preparação';
             break;
         case 'concluido':
-            badgeClass = 'badge-status-concluido'; // Classe CSS para verde
+            badgeClass = 'badge-status-concluido'; // Classe CSS específica
             statusText = 'Concluído';
             break;
         case 'closed': // Exemplo de outros status
@@ -2557,8 +2791,8 @@ function createStatusBadge(status) {
              statusText = 'Cancelado';
              break;
     }
-
-    return `<span class="badge badge-status ${badgeClass}">${statusText}</span>`;
+    // Usa text-wrap para evitar quebra feia do badge
+    return `<span class="badge badge-status ${badgeClass} text-wrap">${statusText}</span>`;
 }
 
 
@@ -2568,6 +2802,14 @@ function createStatusBadge(status) {
  * @param {string} newStatus O novo status ('solicitado', 'preparacao', 'concluido').
  */
 function updateOrderStatus(orderId, newStatus) {
+    // Verifica permissão antes de prosseguir
+    const userRole = getUserRole();
+    if (userRole !== 'admin' && userRole !== 'kitchen') {
+        console.warn(`Usuário ${userRole} sem permissão para alterar status do pedido ${orderId}.`);
+        alert("Você não tem permissão para alterar o status dos pedidos.");
+        return;
+    }
+
     let orders = JSON.parse(localStorage.getItem('orders') || '[]');
     const orderIndex = orders.findIndex(o => o.orderId === orderId);
 
@@ -2579,8 +2821,9 @@ function updateOrderStatus(orderId, newStatus) {
         const allowedTransitions = {
              solicitado: ['preparacao', 'cancelled'], // De solicitado só pode ir para preparação ou cancelado
              preparacao: ['solicitado', 'concluido', 'cancelled'], // De preparação pode voltar, avançar ou cancelar
-             concluido: [], // De concluído não pode mudar (exceto talvez cancelamento especial?)
+             concluido: [], // De concluído não pode mudar (exceto talvez cancelamento especial ou reabertura por admin?)
              cancelled: [] // De cancelado não pode mudar
+             // Adicionar outros status se implementados
         };
 
          // Verifica se a transição é permitida (se a regra existir para o status atual)
@@ -2600,10 +2843,15 @@ function updateOrderStatus(orderId, newStatus) {
         if (document.getElementById('orders-table-body')) {
             displayOrdersTable(); // Atualiza a tabela na página de Gerenciar Pedidos
         }
-        if (document.getElementById('ongoingOrdersList') && document.getElementById('orderModalTableId')?.value === orders[orderIndex].tableId) {
-             displayOngoingOrders(orders[orderIndex].tableId); // Atualiza o histórico no modal se ele estiver aberto para essa mesa
+        // Atualiza histórico no modal se estiver aberto para a mesa correta
+        const orderModalTableIdInput = document.getElementById('orderModalTableId');
+        if (orderModalTableIdInput && document.getElementById('ongoingOrdersList') && orderModalTableIdInput.value === orders[orderIndex].tableId) {
+             displayOngoingOrders(orders[orderIndex].tableId);
         }
-        updateDashboardCards(); // Atualiza contadores no dashboard
+        // Atualiza dashboard
+        if(document.getElementById('dashboard-cards')) {
+             updateDashboardCards();
+        }
 
     } else {
         console.error(`Erro: Pedido ${orderId} não encontrado para atualizar status.`);
@@ -2626,10 +2874,12 @@ function openReceiptModal(tableId, receiptModalInstance) {
     const receiptBody = document.getElementById('receiptModalBody');
     const receiptTableNumber = document.getElementById('receiptTableNumber');
     const taxCheckbox = document.getElementById('addServiceTaxCheck');
+    const modalElement = receiptModalInstance ? receiptModalInstance._element : null; // Pega o elemento HTML do modal
 
     // Verifica se tudo necessário existe
-    if (table && receiptBody && receiptTableNumber && receiptModalInstance && taxCheckbox) {
+    if (table && receiptBody && receiptTableNumber && modalElement && taxCheckbox) {
         // Filtra os pedidos relevantes para a conta (não cancelados, etc.)
+        // Considera pedidos 'solicitado', 'preparacao', 'concluido' para a conta
         const relevantStatuses = ['solicitado', 'preparacao', 'concluido'];
         const tableOrders = orders.filter(o => o.tableId === tableId && relevantStatuses.includes(o.status));
 
@@ -2641,7 +2891,7 @@ function openReceiptModal(tableId, receiptModalInstance) {
         receiptBody.innerHTML = generateReceiptHtml(tableOrders, table.number, table.people || 1, includeTaxDefault);
 
         // Armazena o ID da mesa no dataset do modal para referência posterior (ex: ao mudar a taxa)
-        receiptModalInstance._element.dataset.tableId = tableId;
+        modalElement.dataset.tableId = tableId;
 
         // --- Lógica para adicionar ao Faturamento Diário ---
         const dailyTotalKey = getDailyTotalKey();
@@ -2652,37 +2902,48 @@ function openReceiptModal(tableId, receiptModalInstance) {
 
         // Verifica se esta mesa JÁ foi adicionada ao total HOJE
         if (!billedTablesToday.includes(tableId)) {
-            // Calcula o valor total DO RECIBO ATUAL (com ou sem taxa, conforme checkbox)
-            let receiptGrandTotal = 0;
-            let receiptSubTotal = 0;
-            if (tableOrders && tableOrders.length > 0) {
-                 const allItemsMap = new Map();
-                 tableOrders.forEach(order => { if (order.items) order.items.forEach(item => { const itemKey = `${item.dishId}_${item.observation || ''}`; if (allItemsMap.has(itemKey)) { allItemsMap.get(itemKey).quantity += item.quantity; } else { allItemsMap.set(itemKey, { ...item }); } }); });
-                 allItemsMap.forEach(item => { receiptSubTotal += item.quantity * item.price; });
-            }
-            receiptGrandTotal = receiptSubTotal;
-            if (includeTaxDefault && receiptSubTotal > 0) {
-                receiptGrandTotal += receiptSubTotal * 0.10;
-            }
-
-             // Verifica se o total é positivo antes de adicionar
-             if (receiptGrandTotal > 0) {
-                  // Adiciona o valor ao total do dia
-                  dailyTotal += receiptGrandTotal;
-                  // Marca a mesa como faturada hoje
-                  billedTablesToday.push(tableId);
-
-                  // Salva os dados atualizados no localStorage
-                  localStorage.setItem(dailyTotalKey, dailyTotal.toString());
-                  localStorage.setItem(billedTablesKey, JSON.stringify(billedTablesToday));
-
-                  console.log(`Mesa ${table.number} (ID: ${tableId}) adicionada ao faturamento de hoje (${receiptGrandTotal.toFixed(2)}). Novo total: R$ ${dailyTotal.toFixed(2)}`);
-
-                  // Atualiza o card de faturamento no dashboard
-                  updateFinancialReport();
-             } else {
-                  console.log(`Mesa ${table.number} (ID: ${tableId}) com valor total R$0.00. Não adicionando ao faturamento diário.`);
+             // Calcula o valor total dos ITENS desta conta (sem a taxa ainda)
+             let currentBillSubTotal = 0;
+             if (tableOrders && tableOrders.length > 0) {
+                  // Agrupa itens para evitar duplicação se o mesmo item foi pedido várias vezes
+                  const billItemsMap = new Map();
+                  tableOrders.forEach(order => {
+                       if (order.items) {
+                           order.items.forEach(item => {
+                               const itemKey = `${item.dishId}_${item.observation || ''}`;
+                               if (billItemsMap.has(itemKey)) {
+                                   billItemsMap.get(itemKey).quantity += item.quantity;
+                               } else {
+                                   billItemsMap.set(itemKey, { ...item });
+                               }
+                           });
+                       }
+                   });
+                  // Soma o valor dos itens agrupados
+                  billItemsMap.forEach(item => { currentBillSubTotal += item.quantity * item.price; });
              }
+
+             // Calcula o valor total a ser adicionado ao faturamento (com taxa, se marcada)
+             let amountToAdd = currentBillSubTotal;
+             if (includeTaxDefault && currentBillSubTotal > 0) {
+                 amountToAdd += currentBillSubTotal * 0.10; // Adiciona 10%
+             }
+
+            // Adiciona o valor ao total do dia
+            dailyTotal += amountToAdd;
+            // Marca a mesa como faturada hoje
+            billedTablesToday.push(tableId);
+
+            // Salva os dados atualizados no localStorage
+            localStorage.setItem(dailyTotalKey, dailyTotal.toFixed(2)); // Salva com 2 casas decimais
+            localStorage.setItem(billedTablesKey, JSON.stringify(billedTablesToday));
+
+            console.log(`Mesa ${table.number} (ID: ${tableId}) adicionada ao faturamento de hoje (Valor: R$ ${amountToAdd.toFixed(2)}). Novo total: R$ ${dailyTotal.toFixed(2)}`);
+
+            // Atualiza o card de faturamento no dashboard (se estiver nessa página)
+            if (document.getElementById('daily-total-amount')) {
+                updateFinancialReport();
+            }
 
         } else {
              console.log(`Mesa ${table.number} (ID: ${tableId}) já foi contabilizada no faturamento de hoje. Não adicionando novamente.`);
@@ -2693,11 +2954,11 @@ function openReceiptModal(tableId, receiptModalInstance) {
          //console.log(`Modal de recibo aberto para Mesa ${table.number} (ID: ${tableId})`);
 
     } else {
-        console.error("Erro ao abrir modal de recibo: Elementos faltando ou mesa não encontrada.", {
+        console.error("Erro ao abrir modal de recibo: Elementos faltando, mesa não encontrada ou modal não instanciado.", {
             tableExists: !!table,
             receiptBodyExists: !!receiptBody,
             receiptTableNumberExists: !!receiptTableNumber,
-            receiptModalInstanceExists: !!receiptModalInstance,
+            modalElementExists: !!modalElement,
             taxCheckboxExists: !!taxCheckbox
         });
         alert("Não foi possível gerar a conta. Verifique o console para detalhes.");
@@ -2707,7 +2968,7 @@ function openReceiptModal(tableId, receiptModalInstance) {
 
 /**
  * Gera o conteúdo HTML para o corpo do modal de recibo.
- * @param {Array} orders Array de objetos de pedido para a mesa.
+ * @param {Array} orders Array de objetos de pedido para a mesa (apenas status relevantes).
  * @param {number} tableNumber Número da mesa.
  * @param {number} peopleCount Número de pessoas na mesa.
  * @param {boolean} includeTax Indica se a taxa de serviço deve ser incluída.
@@ -2723,7 +2984,7 @@ function generateReceiptHtml(orders, tableNumber, peopleCount = 1, includeTax = 
 
     let subTotal = 0;
 
-    // Agrupa e soma itens de todos os pedidos relevantes
+    // Agrupa e soma itens de todos os pedidos relevantes para esta conta
     if (orders && orders.length > 0) {
         const allItemsMap = new Map(); // Usar Map para agrupar itens iguais com observações iguais
 
@@ -2737,7 +2998,14 @@ function generateReceiptHtml(orders, tableNumber, peopleCount = 1, includeTax = 
                         allItemsMap.get(itemKey).quantity += item.quantity;
                     } else {
                         // Se não existe, adiciona uma cópia do item ao Map
-                        allItemsMap.set(itemKey, { ...item });
+                        // Garante que price e quantity sejam números
+                        const price = parseFloat(item.price);
+                        const quantity = parseInt(item.quantity, 10);
+                        if (!isNaN(price) && !isNaN(quantity)) {
+                             allItemsMap.set(itemKey, { ...item, price: price, quantity: quantity });
+                        } else {
+                             console.warn("Item inválido encontrado no pedido:", item);
+                        }
                     }
                 });
             }
@@ -2759,7 +3027,7 @@ function generateReceiptHtml(orders, tableNumber, peopleCount = 1, includeTax = 
                 }
             });
         } else {
-            html += "<p class='text-muted fst-italic'>Nenhum item consumido registrado nos pedidos.</p>";
+            html += "<p class='text-muted fst-italic'>Nenhum item consumido registrado nos pedidos válidos.</p>";
         }
     } else {
         html += "<p class='text-muted fst-italic'>Nenhum pedido registrado para esta mesa.</p>";
@@ -2818,7 +3086,7 @@ function updateDashboardCards() {
     if(pendingEl) pendingEl.textContent = pendingOrders;
 
      //console.log('Cards do Dashboard (exceto financeiro) atualizados:', { totalTables, occupiedTables, emptyTables, pendingOrders });
-     // O card financeiro é atualizado por updateFinancialReport()
+     // O card financeiro é atualizado por updateFinancialReport() separadamente
 }
 
 /**
@@ -2840,32 +3108,37 @@ function updateFinancialReport() {
 
 /**
  * Obtém informações básicas (ID e Nome) do usuário logado a partir do localStorage.
- * @returns {object|null} Objeto com { id, name } ou null se não encontrar.
+ * @returns {object|null} Objeto com { id, name } ou null se não encontrar ou erro.
  */
 function getLoggedInUserInfo() {
-    const userId = localStorage.getItem('userId');
-    const email = localStorage.getItem('userEmail'); // Pega o email também para fallback do nome
+    try {
+        const userId = localStorage.getItem('userId');
+        const email = localStorage.getItem('userEmail'); // Pega o email também para fallback do nome
 
-    if (!userId || !email) {
-         console.warn("Não foi possível obter ID ou Email do usuário logado no localStorage.");
-         return null;
-    }
+        if (!userId || !email) {
+             console.warn("Não foi possível obter ID ou Email do usuário logado no localStorage.");
+             return null;
+        }
 
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find(u => u.id === userId);
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        const user = users.find(u => u.id === userId);
 
-    if (user) {
-        return {
-            id: user.id,
-            name: user.name || email.split('@')[0] // Usa nome ou parte do email
-        };
-    } else {
-         console.error(`Usuário com ID ${userId} não encontrado no array de usuários.`);
-         // Fallback usando apenas o email se o usuário não for encontrado (improvável mas seguro)
-         return {
-              id: userId, // Mantém o ID que estava no storage
-              name: email.split('@')[0]
-         };
+        if (user) {
+            return {
+                id: user.id,
+                name: user.name || email.split('@')[0] // Usa nome ou parte do email
+            };
+        } else {
+             console.error(`Usuário com ID ${userId} não encontrado no array de usuários.`);
+             // Fallback usando apenas o email se o usuário não for encontrado (improvável mas seguro)
+             return {
+                  id: userId, // Mantém o ID que estava no storage
+                  name: email.split('@')[0]
+             };
+        }
+    } catch (error) {
+        console.error("Erro ao obter informações do usuário logado:", error);
+        return null; // Retorna null em caso de erro (ex: JSON inválido)
     }
 }
 
@@ -2877,48 +3150,53 @@ function getLoggedInUserInfo() {
  * @returns {boolean} True se a atualização foi bem-sucedida, false caso contrário.
  */
 function updateUserProfile(updatedUserData) {
-    let users = JSON.parse(localStorage.getItem('users') || '[]');
-    const messageDiv = document.getElementById('profileForm-message'); // Div de mensagem na página de perfil
+     try {
+        let users = JSON.parse(localStorage.getItem('users') || '[]');
+        const messageDiv = document.getElementById('profileForm-message'); // Div de mensagem na página de perfil
 
-    const userIndex = users.findIndex(u => u.id === updatedUserData.id);
+        const userIndex = users.findIndex(u => u.id === updatedUserData.id);
 
-    if (userIndex === -1) {
-        console.error("Erro ao atualizar perfil: Usuário não encontrado no localStorage.", updatedUserData.id);
-        if (messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro crítico: Seus dados não foram encontrados. Faça login novamente.</div>`;
-        return false;
-    }
+        if (userIndex === -1) {
+            console.error("Erro ao atualizar perfil: Usuário não encontrado no localStorage.", updatedUserData.id);
+            if (messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Erro crítico: Seus dados não foram encontrados. Faça login novamente.</div>`;
+            return false;
+        }
 
-    // Atualiza os campos permitidos
-    users[userIndex].name = updatedUserData.name;
-    // Atualiza a senha APENAS se uma nova foi fornecida
-    if (updatedUserData.password) {
-        users[userIndex].password = updatedUserData.password;
-         //console.log("Senha do perfil atualizada.");
-    }
-    // Atualiza a URL da imagem (pode ser a mesma ou uma nova)
-    if (updatedUserData.imageUrl !== undefined) { // Permite definir como null ou string vazia
-        users[userIndex].imageUrl = updatedUserData.imageUrl;
-    }
+        // Atualiza os campos permitidos
+        users[userIndex].name = updatedUserData.name;
+        // Atualiza a senha APENAS se uma nova foi fornecida
+        if (updatedUserData.password) {
+            users[userIndex].password = updatedUserData.password;
+             //console.log("Senha do perfil atualizada.");
+        }
+        // Atualiza a URL da imagem (pode ser a mesma ou uma nova)
+        if (updatedUserData.imageUrl !== undefined) { // Permite definir como null ou string vazia
+            users[userIndex].imageUrl = updatedUserData.imageUrl;
+        }
 
-    // Salva o array de usuários atualizado
-    localStorage.setItem('users', JSON.stringify(users));
-    console.log('Perfil do usuário atualizado com sucesso:', users[userIndex]);
+        // Salva o array de usuários atualizado
+        localStorage.setItem('users', JSON.stringify(users));
+        console.log('Perfil do usuário atualizado com sucesso:', users[userIndex]);
 
-    // Atualiza o nome exibido no header, se o usuário logado foi o que se atualizou
-    if(localStorage.getItem('userId') === updatedUserData.id) {
-        displayLoggedInUser();
-    }
+        // Atualiza o nome exibido no header, se o usuário logado foi o que se atualizou
+        if(localStorage.getItem('userId') === updatedUserData.id) {
+            displayLoggedInUser();
+        }
 
-    return true;
+        return true;
+     } catch(error) {
+          console.error("Erro ao atualizar perfil:", error);
+          const messageDiv = document.getElementById('profileForm-message');
+          if (messageDiv) messageDiv.innerHTML = `<div class="alert alert-danger">Ocorreu um erro inesperado ao salvar seu perfil.</div>`;
+          return false;
+     }
 }
 
 /**
  * Sanitiza uma string para evitar XSS básico ao inseri-la como HTML.
- * Substitui <, >, & pelos seus equivalentes HTML.
- * ATENÇÃO: Esta é uma sanitização MUITO BÁSICA. Para segurança robusta,
- * use bibliotecas dedicadas ou frameworks que façam isso corretamente.
- * @param {string} str A string a ser sanitizada.
- * @returns {string} A string sanitizada.
+ * Substitui <, >, &, ", ' pelos seus equivalentes HTML.
+ * @param {string | number | null | undefined} str A string ou valor a ser sanitizado.
+ * @returns {string} A string sanitizada ou string vazia se entrada for null/undefined.
  */
 function sanitizeHTML(str) {
     if (str === null || str === undefined) return '';
@@ -2931,21 +3209,31 @@ function sanitizeHTML(str) {
 }
 
 /**
- * Sanitiza uma string para ser usada com segurança dentro de um atributo HTML (ex: data-observation).
- * Substitui aspas duplas e simples para evitar quebra do atributo.
- * @param {string} str A string a ser sanitizada.
+ * Sanitiza uma string para ser usada com segurança dentro de um atributo HTML (ex: data-observation, value, title, alt).
+ * Substitui aspas duplas, simples e outros caracteres problemáticos.
+ * @param {string | number | null | undefined} str A string ou valor a ser sanitizado.
  * @returns {string} A string pronta para ser usada em um atributo.
  */
 function sanitizeAttribute(str) {
     if (str === null || str === undefined) return '';
      return String(str)
-         .replace(/"/g, '&quot;') // Substitui aspas duplas
-         .replace(/'/g, '&#039;'); // Substitui aspas simples
+         .replace(/&/g, '&amp;')
+         .replace(/</g, '&lt;')
+         .replace(/>/g, '&gt;')
+         .replace(/"/g, '&quot;')
+         .replace(/'/g, '&#039;');
 }
 
 
 // ========= INICIALIZAÇÃO DE DADOS PADRÃO =========
 function initializeLocalStorageData() {
+    // Verifica se algum dado já existe para evitar sobreescrever
+    if (localStorage.getItem('users') && localStorage.getItem('tables') && localStorage.getItem('dishes')) {
+         //console.log('LocalStorage: Dados já existem, não inicializando padrões.');
+         return;
+    }
+    console.log('LocalStorage: Inicializando dados padrão...');
+
     // Usuários Padrão
     if (!localStorage.getItem('users')) {
         const defaultUsers = [
@@ -2956,7 +3244,7 @@ function initializeLocalStorageData() {
             { id: 'u5', name: 'Ajudante Cozinha', email: 'cozinha2@restaurante.com', role: 'kitchen', password: 'password', imageUrl: null }
         ];
         localStorage.setItem('users', JSON.stringify(defaultUsers));
-        console.log('LocalStorage: Usuários padrão inicializados.');
+        //console.log('LocalStorage: Usuários padrão inicializados.');
     }
 
     // Mesas Padrão
@@ -2974,65 +3262,120 @@ function initializeLocalStorageData() {
             }
         });
         localStorage.setItem('tables', JSON.stringify(defaultTables));
-        console.log('LocalStorage: Mesas padrão inicializadas.');
+        //console.log('LocalStorage: Mesas padrão inicializadas.');
     }
 
     // Pratos Padrão (Lista Completa)
     if (!localStorage.getItem('dishes')) {
         const defaultDishes = [
+            // Entradas
             { id: 'd1', name: 'Bruschetta Tradicional', description: 'Pão italiano tostado com tomate, alho, manjericão e azeite.', price: 22.50, category: 'Entradas', imageUrl: 'img/dishes/bruschetta_tradicional.jpg' },
             { id: 'd2', name: 'Carpaccio de Carne', description: 'Finas fatias de carne bovina crua com molho de alcaparras e parmesão.', price: 35.00, category: 'Entradas', imageUrl: 'img/dishes/carpaccio_de_carne.jpg' },
             { id: 'd3', name: 'Dadinhos de Tapioca', description: 'Cubos de tapioca com queijo coalho fritos, servidos com melaço.', price: 28.00, category: 'Entradas', imageUrl: 'img/dishes/dadinhos_de_tapioca.jpg' },
+            // Saladas
             { id: 'd4', name: 'Salada Caesar com Frango', description: 'Alface romana, croutons, parmesão, molho Caesar e tiras de frango grelhado.', price: 38.00, category: 'Saladas', imageUrl: 'img/dishes/salada_caesar_com_frango.jpg' },
             { id: 'd5', name: 'Salada Caprese', description: 'Tomate, mussarela de búfala, manjericão fresco e pesto.', price: 32.00, category: 'Saladas', imageUrl: 'img/dishes/salada_caprese.jpg' },
             { id: 'd6', name: 'Salada de Quinoa', description: 'Quinoa, pepino, tomate cereja, pimentão, cebola roxa e coentro com molho cítrico.', price: 35.00, category: 'Saladas', imageUrl: 'img/dishes/salada_de_quinoa.jpg' },
+            // Massas
             { id: 'd7', name: 'Spaghetti Carbonara', description: 'Massa longa com molho à base de ovos, queijo pecorino, pancetta e pimenta do reino.', price: 45.00, category: 'Massas', imageUrl: 'img/dishes/spaghetti_carbonara.jpg' },
             { id: 'd8', name: 'Fettuccine Alfredo', description: 'Massa fresca com molho cremoso de queijo parmesão e manteiga.', price: 42.00, category: 'Massas', imageUrl: 'img/dishes/fettuccine_alfredo.jpg' },
             { id: 'd9', name: 'Lasanha à Bolonhesa', description: 'Camadas de massa, molho bolonhesa, molho branco e queijo gratinado.', price: 48.00, category: 'Massas', imageUrl: 'img/dishes/lasanha_a_bolonhesa.jpg' },
+            // Carnes
             { id: 'd10', name: 'Picanha Grelhada', description: 'Fatia generosa de picanha grelhada no ponto desejado, acompanha farofa e vinagrete.', price: 65.00, category: 'Carnes', imageUrl: 'img/dishes/picanha_grelhada.jpg' },
             { id: 'd11', name: 'Filé Mignon ao Molho Madeira', description: 'Medalhão de filé mignon grelhado com molho madeira e champignons.', price: 72.00, category: 'Carnes', imageUrl: 'img/dishes/file_mignon_ao_molho_madeira.jpg' },
             { id: 'd12', name: 'Costela Suína BBQ', description: 'Costelinha de porco assada lentamente com molho barbecue caseiro.', price: 58.00, category: 'Carnes', imageUrl: 'img/dishes/costela_suina_bbq.jpg' },
+            // Peixes
             { id: 'd13', name: 'Salmão Grelhado com Legumes', description: 'Posta de salmão grelhada com azeite e ervas, servida com legumes salteados.', price: 68.00, category: 'Peixes', imageUrl: 'img/dishes/salmao_grelhado_com_legumes.jpg' },
             { id: 'd14', name: 'Moqueca de Peixe Baiana', description: 'Peixe cozido no leite de coco, azeite de dendê, pimentões e coentro.', price: 75.00, category: 'Peixes', imageUrl: 'img/dishes/moqueca_de_peixe_baiana.jpg' },
             { id: 'd15', name: 'Tilápia à Belle Meunière', description: 'Filé de tilápia grelhado na manteiga com alcaparras, champignon e camarões.', price: 62.00, category: 'Peixes', imageUrl: 'img/dishes/tilapia_a_belle_meuniere.jpg' },
+            // Aves
             { id: 'd16', name: 'Frango à Parmegiana', description: 'Filé de frango empanado, coberto com molho de tomate e queijo mussarela gratinado.', price: 46.00, category: 'Aves', imageUrl: 'img/dishes/frango_a_parmegiana.jpg' },
             { id: 'd17', name: 'Risoto de Frango com Açafrão', description: 'Arroz arbóreo cremoso com cubos de frango, açafrão e parmesão.', price: 52.00, category: 'Aves', imageUrl: 'img/dishes/risoto_de_frango_com_acafrao.jpg' },
             { id: 'd18', name: 'Coxa e Sobrecoxa Assada', description: 'Frango assado lentamente com ervas e batatas coradas.', price: 40.00, category: 'Aves', imageUrl: 'img/dishes/coxa_e_sobrecoxa_assada.jpg' },
+            // Sobremesas
             { id: 'd19', name: 'Pudim de Leite Condensado', description: 'Clássico pudim de leite condensado com calda de caramelo.', price: 18.00, category: 'Sobremesas', imageUrl: 'img/dishes/pudim_de_leite_condensado.jpg' },
             { id: 'd20', name: 'Petit Gateau com Sorvete', description: 'Bolinho quente de chocolate com centro cremoso, servido com sorvete de creme.', price: 25.00, category: 'Sobremesas', imageUrl: 'img/dishes/petit_gateau_com_sorvete.jpg' },
             { id: 'd21', name: 'Mousse de Maracujá', description: 'Mousse leve e aerada de maracujá com calda da fruta.', price: 20.00, category: 'Sobremesas', imageUrl: 'img/dishes/mousse_de_maracuja.jpg' },
+            // Bebidas
             { id: 'd22', name: 'Suco Natural de Laranja', description: '300ml de suco de laranja feito na hora.', price: 10.00, category: 'Bebidas', imageUrl: 'img/dishes/suco_natural_de_laranja.jpg' },
             { id: 'd23', name: 'Refrigerante Lata', description: 'Coca-Cola, Guaraná Antarctica, etc.', price: 6.00, category: 'Bebidas', imageUrl: 'img/dishes/refrigerante_lata.jpg' },
             { id: 'd24', name: 'Água Mineral com Gás', description: 'Garrafa 300ml.', price: 5.00, category: 'Bebidas', imageUrl: 'img/dishes/agua_mineral_com_gas.jpg' },
-            { id: 'd25', name: 'Café Espresso', description: 'Café curto e intenso.', price: 7.00, category: 'Bebidas', imageUrl: 'img/dishes/cafe_espresso.jpg'} // Exemplo adicional
+            { id: 'd25', name: 'Café Espresso', description: 'Café curto e intenso.', price: 7.00, category: 'Bebidas', imageUrl: 'img/dishes/cafe_espresso.jpg'}
         ];
         localStorage.setItem('dishes', JSON.stringify(defaultDishes));
-        console.log('LocalStorage: Pratos padrão inicializados.');
+        //console.log('LocalStorage: Pratos padrão inicializados.');
     }
 
     // Pedidos FAKE para demonstração
-    if (!localStorage.getItem('orders')) {
-        const users = JSON.parse(localStorage.getItem('users') || '[]'); // Carrega usuários para pegar IDs
+    // Apenas inicializa se não existirem E se usuários e pratos já existirem
+    if (!localStorage.getItem('orders') && localStorage.getItem('users') && localStorage.getItem('dishes')) {
+        const users = JSON.parse(localStorage.getItem('users')); // Carrega usuários para pegar IDs
+        const dishes = JSON.parse(localStorage.getItem('dishes')); // Carrega pratos para pegar detalhes
         const adminUser = users.find(u=>u.role==='admin') || {id:'u1', name:'Admin Master'};
         const waiterUser = users.find(u=>u.email==='garcom@restaurante.com') || {id:'u2', name:'Garçom Silva'};
         const now = Date.now();
 
-        const fakeOrders = [
-            // Pedido 1 (Mesa 2, Solicitado, Garçom)
-            { orderId: 'o' + (now - 900000), tableId: 't2', tableNumber: 2, items: [ { dishId: 'd1', name: 'Bruschetta Tradicional', price: 22.50, quantity: 1, observation: '', category: 'Entradas' }, { dishId: 'd23', name: 'Refrigerante Lata', price: 6.00, quantity: 2, observation: 'Coca Zero', category: 'Bebidas' } ], status: 'solicitado', createdAt: new Date(now - 900000).toISOString(), updatedAt: new Date(now - 900000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name },
-            // Pedido 2 (Mesa 5, Em Preparação, Admin)
-            { orderId: 'o' + (now - 600000), tableId: 't5', tableNumber: 5, items: [ { dishId: 'd9', name: 'Lasanha à Bolonhesa', price: 48.00, quantity: 1, observation: 'Sem cebola', category: 'Massas' } ], status: 'preparacao', createdAt: new Date(now - 600000).toISOString(), updatedAt: new Date(now - 300000).toISOString(), createdByUserId: adminUser.id, createdByUserName: adminUser.name },
-             // Pedido 3 (Mesa 8, Concluído, Garçom)
-            { orderId: 'o' + (now - 1200000), tableId: 't8', tableNumber: 8, items: [ { dishId: 'd16', name: 'Frango à Parmegiana', price: 46.00, quantity: 2, observation: '', category: 'Aves' }, { dishId: 'd22', name: 'Suco Natural de Laranja', price: 10.00, quantity: 2, observation: '', category: 'Bebidas' } ], status: 'concluido', createdAt: new Date(now - 1200000).toISOString(), updatedAt: new Date(now - 100000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name },
-             // Pedido 4 (Mesa 12, Solicitado, Garçom)
-            { orderId: 'o' + (now - 300000), tableId: 't12', tableNumber: 12, items: [ { dishId: 'd21', name: 'Mousse de Maracujá', price: 20.00, quantity: 1, observation: '', category: 'Sobremesas' } ], status: 'solicitado', createdAt: new Date(now - 300000).toISOString(), updatedAt: new Date(now - 300000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name },
-             // Pedido 5 (Mesa 17, Em Preparação, Admin)
-            { orderId: 'o' + (now - 100000), tableId: 't17', tableNumber: 17, items: [ { dishId: 'd10', name: 'Picanha Grelhada', price: 65.00, quantity: 1, observation: 'Ao ponto', category: 'Carnes' }, { dishId: 'd24', name: 'Água Mineral com Gás', price: 5.00, quantity: 1, observation: '', category: 'Bebidas' } ], status: 'preparacao', createdAt: new Date(now - 100000).toISOString(), updatedAt: new Date(now - 50000).toISOString(), createdByUserId: adminUser.id, createdByUserName: adminUser.name },
-             // Pedido 6 (Mesa 5, Concluído, Garçom - pedido antigo para mesma mesa)
-            { orderId: 'o' + (now - 1800000), tableId: 't5', tableNumber: 5, items: [ { dishId: 'd1', name: 'Bruschetta Tradicional', price: 22.50, quantity: 1, observation: '', category: 'Entradas' }, { dishId: 'd22', name: 'Suco Natural de Laranja', price: 10.00, quantity: 1, observation: '', category: 'Bebidas' } ], status: 'concluido', createdAt: new Date(now - 1800000).toISOString(), updatedAt: new Date(now - 1700000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name },
-        ];
-        localStorage.setItem('orders', JSON.stringify(fakeOrders));
-        console.log('LocalStorage: Pedidos FAKE inicializados.');
+        // Função auxiliar para pegar detalhes do prato pelo ID
+        const getDishDetails = (dishId) => {
+             const dish = dishes.find(d => d.id === dishId);
+             return dish ? { dishId: dish.id, name: dish.name, price: dish.price, category: dish.category || 'Outros' } : null;
+        };
+
+        const fakeOrders = [];
+
+        // Pedido 1 (Mesa 2, Solicitado, Garçom)
+        const order1Items = [ getDishDetails('d1'), getDishDetails('d23'), getDishDetails('d23') ]
+                            .filter(Boolean) // Remove nulls se prato não encontrado
+                            .map((item, index) => ({ ...item, quantity: index === 0 ? 1 : 2, observation: index === 1 ? 'Coca Zero' : '' })); // Quantidade e Obs
+        if(order1Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 900000), tableId: 't2', tableNumber: 2, items: order1Items, status: 'solicitado', createdAt: new Date(now - 900000).toISOString(), updatedAt: new Date(now - 900000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name });
+
+        // Pedido 2 (Mesa 5, Em Preparação, Admin)
+        const order2Items = [ getDishDetails('d9') ]
+                           .filter(Boolean)
+                           .map(item => ({ ...item, quantity: 1, observation: 'Sem cebola' }));
+        if(order2Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 600000), tableId: 't5', tableNumber: 5, items: order2Items, status: 'preparacao', createdAt: new Date(now - 600000).toISOString(), updatedAt: new Date(now - 300000).toISOString(), createdByUserId: adminUser.id, createdByUserName: adminUser.name });
+
+         // Pedido 3 (Mesa 8, Concluído, Garçom)
+        const order3Items = [ getDishDetails('d16'), getDishDetails('d16'), getDishDetails('d22'), getDishDetails('d22') ]
+                           .filter(Boolean)
+                           .map((item, index) => ({ ...item, quantity: (index < 2 ? 1 : 1) * 2, observation: '' })); // Agrupando quantidades
+        if(order3Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 1200000), tableId: 't8', tableNumber: 8, items: order3Items, status: 'concluido', createdAt: new Date(now - 1200000).toISOString(), updatedAt: new Date(now - 100000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name });
+
+         // Pedido 4 (Mesa 12, Solicitado, Garçom)
+        const order4Items = [ getDishDetails('d21') ]
+                           .filter(Boolean)
+                           .map(item => ({ ...item, quantity: 1, observation: '' }));
+        if(order4Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 300000), tableId: 't12', tableNumber: 12, items: order4Items, status: 'solicitado', createdAt: new Date(now - 300000).toISOString(), updatedAt: new Date(now - 300000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name });
+
+         // Pedido 5 (Mesa 17, Em Preparação, Admin)
+        const order5Items = [ getDishDetails('d10'), getDishDetails('d24') ]
+                            .filter(Boolean)
+                            .map((item, index) => ({ ...item, quantity: 1, observation: index === 0 ? 'Ao ponto' : '' }));
+        if(order5Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 100000), tableId: 't17', tableNumber: 17, items: order5Items, status: 'preparacao', createdAt: new Date(now - 100000).toISOString(), updatedAt: new Date(now - 50000).toISOString(), createdByUserId: adminUser.id, createdByUserName: adminUser.name });
+
+         // Pedido 6 (Mesa 5, Concluído, Garçom - pedido antigo para mesma mesa)
+         const order6Items = [ getDishDetails('d1'), getDishDetails('d22') ]
+                            .filter(Boolean)
+                            .map(item => ({ ...item, quantity: 1, observation: '' }));
+         if(order6Items.length > 0) fakeOrders.push({ orderId: 'o' + (now - 1800000), tableId: 't5', tableNumber: 5, items: order6Items, status: 'concluido', createdAt: new Date(now - 1800000).toISOString(), updatedAt: new Date(now - 1700000).toISOString(), createdByUserId: waiterUser.id, createdByUserName: waiterUser.name });
+
+        // Agrupa itens duplicados dentro de cada pedido fake (ex: 2x Refri)
+        const finalFakeOrders = fakeOrders.map(order => {
+            const itemsMap = new Map();
+            if (order.items) {
+                order.items.forEach(item => {
+                     const key = `${item.dishId}_${item.observation}`;
+                     if (itemsMap.has(key)) {
+                          itemsMap.get(key).quantity += item.quantity;
+                     } else {
+                          itemsMap.set(key, { ...item });
+                     }
+                });
+            }
+            return { ...order, items: Array.from(itemsMap.values()) };
+        });
+
+        localStorage.setItem('orders', JSON.stringify(finalFakeOrders));
+        //console.log('LocalStorage: Pedidos FAKE inicializados.');
     }
 }
-// ========= FIM DAS FUNÇÕES =========
