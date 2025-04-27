@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - Sistema de Mesas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos específicos para centralizar o formulário na página de cadastro */
+        body.self-registering {
+            display: flex;
+            flex-direction: column; /* Empilha switch e container */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+             /* Gradiente sutil ou cor sólida como alternativa ao background da imagem de login */
+            background: linear-gradient(to bottom, var(--body-bg-light), var(--body-bg-dark));
+        }
+        .register-form-container {
+            max-width: 500px; /* Um pouco mais largo para o formulário de registro */
+            width: 100%;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            background-color: var(--card-bg);
+            margin-top: 20px; /* Espaço abaixo do switch de tema */
+        }
+         /* Posiciona o switch de tema no canto superior direito */
+         body.self-registering .theme-switch-container {
+            position: absolute; /* Ou 'fixed' se preferir que fique visível ao rolar */
+            top: 15px;
+            right: 15px;
+            z-index: 1000;
+        }
+        /* Ajustes para modo escuro */
+        body.dark-mode .register-form-container {
+             background-color: rgba(var(--bs-dark-rgb), 0.85);
+             border: 1px solid var(--card-border);
+         }
+         body.dark-mode.self-registering {
+             background: linear-gradient(to bottom, var(--bs-gray-800), var(--bs-black));
+         }
+    </style>
+</head>
+<body class="self-registering preload-transition"> <!-- Classe 'self-registering' para estilo específico -->
+
+    <!-- Switch de Tema -->
+    <div class="theme-switch-container">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="darkModeSwitch" role="switch">
+            <label class="form-check-label" for="darkModeSwitch">Modo Escuro</label>
+        </div>
+    </div>
+
+    <!-- Container do Formulário de Cadastro -->
+    <div class="register-form-container">
+        <h2 id="registerPageTitle" class="mb-4 text-center">Criar Conta</h2>
+        <form id="registerUserForm" action="#" method="POST" class="needs-validation" novalidate>
+            <div class="row g-3">
+
+                <!-- Mensagem de Feedback (Erro/Sucesso) -->
+                <div class="col-12">
+                    <div id="form-message" class="form-message"></div>
+                </div>
+
+                <!-- Campo Nome Completo -->
+                <div class="col-12">
+                    <label for="name" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="name" required>
+                    <div class="invalid-feedback">Por favor, insira o nome completo.</div>
+                </div>
+
+                <!-- Campo Email -->
+                <div class="col-12">
+                    <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                    <input type="email" class="form-control" id="email" required>
+                    <div class="invalid-feedback">Por favor, insira um email válido.</div>
+                </div>
+
+                <!-- Campo Senha -->
+                <div class="col-md-6">
+                    <label for="password" class="form-label">Senha <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="password" required minlength="6">
+                    <div class="invalid-feedback">A senha deve ter pelo menos 6 caracteres.</div>
+                </div>
+
+                <!-- Campo Confirmar Senha -->
+                <div class="col-md-6">
+                    <label for="confirmPassword" class="form-label">Confirmar Senha <span class="text-danger">*</span></label>
+                    <input type="password" class="form-control" id="confirmPassword" required>
+                    <div class="invalid-feedback">As senhas não coincidem ou a confirmação está vazia.</div>
+                </div>
+
+                <!-- Campo Selecionar Perfil -->
+                <div class="col-md-12"> <!-- Alterado para col-md-12 para ocupar largura total em telas médias+ -->
+                    <label for="profileSelect" class="form-label">Perfil do Usuário <span class="text-danger">*</span></label>
+                    <select class="form-select" id="profileSelect" required>
+                        <option value="" disabled selected>Selecione o seu perfil...</option>
+                        <option value="waiter">Garçom / Garçonete</option>
+                        <option value="kitchen">Cozinha</option>
+                        <option value="admin">Administrador(a)</option>
+                    </select>
+                    <div class="invalid-feedback">Selecione o perfil do usuário.</div>
+                </div>
+
+                <!-- Botões -->
+                <div class="col-12 d-flex flex-wrap justify-content-center gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary" id="registerSubmitButton">
+                        <i class="bi bi-check-lg me-1"></i> Cadastrar
+                    </button>
+                    <a href="index.html" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar para Login
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</main>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

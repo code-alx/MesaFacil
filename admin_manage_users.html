@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Usuários - Sistema de Mesas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="body-pd" class="preload-transition">
+
+    <!-- Placeholder onde a navbar e o header serão injetados -->
+    <div id="navbar-placeholder"></div>
+
+    <!--Container Main start-->
+    <main class="content-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+             <h1>Gerenciar Usuários</h1>
+             <!-- Botão para abrir o modal de adicionar usuário -->
+             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                 <i class="bi bi-plus-circle me-1"></i> Adicionar Usuário
+             </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th scope="col">Nome</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Perfil</th>
+                        <th scope="col" class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="user-list-body">
+                    <!-- Linhas serão adicionadas via JavaScript -->
+                    <tr>
+                        <td colspan="4" class="text-center">Carregando usuários...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+    <!--Container Main end-->
+
+    <!-- Modais permanecem aqui pois são específicos desta página -->
+
+    <!-- Modal Adicionar Usuário -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="addUserModalLabel">Adicionar Novo Usuário</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addUserForm" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                             <div class="col-12"><div id="addUserForm-message" class="form-message"></div></div>
+                            <div class="col-12">
+                                <label for="addUserName" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="addUserName" required>
+                                <div class="invalid-feedback">Por favor, insira o nome completo.</div>
+                            </div>
+                            <div class="col-12">
+                                <label for="addUserEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="addUserEmail" required>
+                                <div class="invalid-feedback">Por favor, insira um email válido.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="addUserPassword" class="form-label">Senha <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="addUserPassword" required minlength="6">
+                                <div class="invalid-feedback">A senha deve ter pelo menos 6 caracteres.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="addUserConfirmPassword" class="form-label">Confirmar Senha <span class="text-danger">*</span></label>
+                                <input type="password" class="form-control" id="addUserConfirmPassword" required>
+                                <div class="invalid-feedback">As senhas não coincidem ou a confirmação está vazia.</div>
+                            </div>
+                            <div class="col-12">
+                                <label for="addUserRole" class="form-label">Perfil do Usuário <span class="text-danger">*</span></label>
+                                <select class="form-select" id="addUserRole" required>
+                                    <option value="" disabled selected>Selecione...</option>
+                                    <option value="waiter">Garçom / Garçonete</option>
+                                    <option value="kitchen">Cozinha</option>
+                                    <option value="admin">Administrador(a)</option>
+                                </select>
+                                <div class="invalid-feedback">Selecione o perfil do usuário.</div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" form="addUserForm">Salvar Usuário</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Usuário -->
+    <div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="editUserModalLabel">Editar Usuário</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editUserForm" class="needs-validation" novalidate>
+                        <input type="hidden" id="editUserId">
+                        <div class="row g-3">
+                            <div class="col-12"><div id="editUserForm-message" class="form-message"></div></div>
+                            <div class="col-12">
+                                <label for="editUserName" class="form-label">Nome Completo <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editUserName" required>
+                                <div class="invalid-feedback">Por favor, insira o nome completo.</div>
+                            </div>
+                            <div class="col-12">
+                                <label for="editUserEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                                <input type="email" class="form-control" id="editUserEmail" required>
+                                <div class="invalid-feedback">Por favor, insira um email válido.</div>
+                            </div>
+                             <div class="col-12">
+                                <label for="editUserRole" class="form-label">Perfil do Usuário <span class="text-danger">*</span></label>
+                                <select class="form-select" id="editUserRole" required>
+                                    <option value="" disabled selected>Selecione...</option>
+                                    <option value="waiter">Garçom / Garçonete</option>
+                                    <option value="kitchen">Cozinha</option>
+                                    <option value="admin">Administrador(a)</option>
+                                </select>
+                                <div class="invalid-feedback">Selecione o perfil do usuário.</div>
+                            </div>
+                            <hr class="my-3">
+                            <div class="col-12">
+                                <p class="text-muted small">Deixe os campos de senha em branco para não alterar a senha atual.</p>
+                            </div>
+                             <div class="col-md-6">
+                                <label for="editUserPassword" class="form-label">Nova Senha</label>
+                                <input type="password" class="form-control" id="editUserPassword" minlength="6">
+                                <div class="invalid-feedback">A senha deve ter pelo menos 6 caracteres (se preenchida).</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editUserConfirmPassword" class="form-label">Confirmar Nova Senha</label>
+                                <input type="password" class="form-control" id="editUserConfirmPassword">
+                                <div class="invalid-feedback">As senhas não coincidem.</div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" form="editUserForm">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts no final -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

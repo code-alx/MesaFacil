@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Pratos - Sistema de Mesas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="body-pd" class="preload-transition">
+
+    <!-- Placeholder onde a navbar e o header serão injetados -->
+    <div id="navbar-placeholder"></div>
+
+    <!--Container Main start-->
+    <main class="content-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+             <h1>Gerenciar Pratos</h1>
+             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDishModal">
+                 <i class="bi bi-plus-circle me-1"></i> Adicionar Prato
+             </button>
+        </div>
+
+        <!-- Container para exibir os pratos (agrupados por categoria) -->
+        <div id="dishes-list-container">
+             <!-- Pratos serão carregados aqui pelo JavaScript -->
+             <div class="col-12 text-center p-5">
+                 <div class="spinner-border text-primary" role="status">
+                     <span class="visually-hidden">Carregando pratos...</span>
+                 </div>
+                 <p class="mt-2">Carregando pratos...</p>
+             </div>
+        </div>
+
+    </main>
+    <!--Container Main end-->
+
+     <!-- Modal Adicionar Prato -->
+    <div class="modal fade" id="addDishModal" tabindex="-1" aria-labelledby="addDishModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="addDishModalLabel">Adicionar Novo Prato</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDishForm" class="needs-validation" novalidate>
+                        <div class="row g-3">
+                             <!-- Mensagem de Feedback -->
+                            <div class="col-12"><div id="addDishForm-message" class="form-message"></div></div>
+
+                            <div class="col-12">
+                                <label for="addDishName" class="form-label">Nome do Prato <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="addDishName" required>
+                                <div class="invalid-feedback">Por favor, insira o nome do prato.</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="addDishDescription" class="form-label">Descrição</label>
+                                <textarea class="form-control" id="addDishDescription" rows="3"></textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="addDishPrice" class="form-label">Preço (R$) <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" id="addDishPrice" required min="0" step="0.01">
+                                <div class="invalid-feedback">Por favor, insira um preço válido (ex: 15.50).</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="addDishCategory" class="form-label">Categoria <span class="text-danger">*</span></label>
+                                <select class="form-select" id="addDishCategory" required>
+                                    <option value="" disabled selected>Selecione...</option>
+                                    <option value="Entradas">Entradas</option>
+                                    <option value="Saladas">Saladas</option>
+                                    <option value="Massas">Massas</option>
+                                    <option value="Carnes">Carnes</option>
+                                    <option value="Peixes">Peixes</option>
+                                    <option value="Aves">Aves</option>
+                                    <option value="Sobremesas">Sobremesas</option>
+                                    <option value="Bebidas">Bebidas</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                                <div class="invalid-feedback">Selecione uma categoria.</div>
+                            </div>
+
+                            <div class="col-12">
+                                <label for="addDishImage" class="form-label">Foto do Prato</label>
+                                <input class="form-control" type="file" id="addDishImage" accept="image/jpeg, image/png, image/webp">
+                                <div class="form-text">Upload de imagem real requer backend. Salvaremos apenas um nome de arquivo simulado.</div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" form="addDishForm">Salvar Prato</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Scripts no final -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

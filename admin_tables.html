@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Mesas - Sistema de Mesas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body id="body-pd" class="preload-transition">
+
+    <!-- Placeholder Navbar -->
+    <div id="navbar-placeholder"></div>
+
+    <!-- Container Main start -->
+    <main class="content-wrapper">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+             <h1>Gerenciamento de Mesas</h1>
+             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTableModal">
+                 <i class="bi bi-plus-circle me-1"></i> Adicionar Mesa
+             </button>
+        </div>
+        <p class="text-muted">Clique em uma mesa Livre para ocupá-la e definir o nº de pessoas. Clique em uma mesa Ocupada para gerenciar.</p>
+        <div id="tables-container" class="row g-3">
+            <!-- Placeholder Mesas -->
+            <div class="col-12 text-center p-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Carregando...</span></div><p class="mt-2">Carregando...</p></div>
+        </div>
+    </main>
+    <!-- Container Main end -->
+
+     <!-- Modal Adicionar Mesa (Inalterado) -->
+     <div class="modal fade" id="addTableModal" tabindex="-1" aria-labelledby="addTableModalLabel" aria-hidden="true"> <div class="modal-dialog"> <div class="modal-content"> <div class="modal-header"> <h1 class="modal-title fs-5" id="addTableModalLabel">Adicionar Nova Mesa</h1> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body"> <form id="addTableForm" class="needs-validation" novalidate> <div class="mb-3"> <label for="addTableNumber" class="form-label">Número <span class="text-danger">*</span></label> <input type="number" class="form-control" id="addTableNumber" required min="1"> <div class="invalid-feedback">Número inválido.</div> </div> <div id="addTableForm-message" class="form-message"></div> </form> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button> <button type="submit" class="btn btn-primary" form="addTableForm">Salvar</button> </div> </div> </div> </div>
+
+    <!-- Modal de Ocupar Mesa (NOVO) -->
+    <div class="modal fade" id="occupyTableModal" tabindex="-1" aria-labelledby="occupyTableModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="occupyTableModalLabel">Ocupar Mesa <span id="occupyTableNumber">--</span></h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="occupyTableId">
+                    <div class="mb-3">
+                        <label for="occupyTablePeople" class="form-label">Nº de Pessoas (Adultos) <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="occupyTablePeople" value="1" required min="1">
+                        <div class="invalid-feedback">Informe o número de pessoas.</div>
+                    </div>
+                    <div id="occupyTableForm-message" class="form-message"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmOccupyTableBtn">Confirmar Ocupação</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+     <!-- Modal de Pedido/Conta da Mesa (Comentário Corrigido e Campo Observação) -->
+     <div class="modal fade" id="orderModal" tabindex="-1" aria-labelledby="orderModalLabel" aria-hidden="true">
+         <div class="modal-dialog modal-lg modal-dialog-scrollable">
+             <div class="modal-content">
+                 <div class="modal-header">
+                      
+                     <h1 class="modal-title fs-5" id="orderModalLabel">Mesa <span id="orderModalTableNumber" class="fw-bold">--</span> (<span id="orderModalPeopleCount">?</span> pessoas)</h1>
+                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                 </div>
+                 <div class="modal-body">
+                     <input type="hidden" id="orderModalTableId">
+
+                     <!-- Seção: Adicionar Novos Itens -->
+                     <div class="add-item-section mb-3">
+                         <h5><i class="bi bi-plus-square"></i> Adicionar Itens ao Novo Pedido</h5>
+                         <div class="p-3 border rounded bg-light add-item-form">
+                             <div class="row g-2 mb-2 align-items-center">
+                                  <div class="col-sm-6">
+                                      <label for="dishSelect" class="form-label">Prato/Bebida</label>
+                                      <select class="form-select form-select-sm" id="dishSelect">
+                                          <option selected disabled value="">Carregando...</option>
+                                      </select>
+                                  </div>
+                                  <div class="col-sm-2">
+                                     <label for="itemQuantity" class="form-label">Qtd.</label>
+                                     <input type="number" class="form-control form-control-sm" id="itemQuantity" value="1" min="1">
+                                  </div>
+                                   <div class="col-sm-4">
+                                      <label for="itemObservation" class="form-label">Observação</label>
+                                      <input type="text" class="form-control form-control-sm" id="itemObservation" placeholder="Ex: sem cebola">
+                                  </div>
+                             </div>
+                             <button type="button" class="btn btn-sm btn-success w-100" id="addItemToTempListBtn">
+                                 <i class="bi bi-plus-circle-fill"></i> Adicionar à Lista Abaixo
+                             </button>
+                         </div>
+                     </div>
+
+                      <!-- Seção: Itens Temporários -->
+                      <div class="temp-items-section mb-4">
+                         <h6><i class="bi bi-basket3"></i> Itens Novos (Prontos para Enviar)</h6>
+                         <div id="tempOrderItemsList" class="list-group list-group-flush mb-2 temporary-items-list">
+                            <p class="list-group-item text-muted text-center small p-2">Nenhum item novo adicionado.</p>
+                         </div>
+                          <button type="button" class="btn btn-primary w-100" id="sendOrderToKitchenBtn" disabled>
+                              <i class="bi bi-send-fill"></i> Enviar Novo Pedido para Cozinha
+                          </button>
+                     </div>
+
+                     <hr>
+
+                     <!-- Seção: Histórico de Pedidos da Mesa -->
+                     <div class="ongoing-orders-section">
+                         <h5><i class="bi bi-clock-history"></i> Histórico de Pedidos da Mesa</h5>
+                         <div id="ongoingOrdersList" class="accordion">
+                            <p class="text-muted p-2">Nenhum pedido registrado para esta mesa.</p>
+                         </div>
+                     </div>
+
+                     <div id="orderModal-message" class="form-message mt-3"></div>
+
+                 </div>
+                 <div class="modal-footer justify-content-between">
+                     <div>
+                         <button type="button" class="btn btn-info" id="closeTableBillBtn" title="Gerar Conta da Mesa">
+                             <i class="bi bi-receipt"></i> Gerar Conta
+                         </button>
+                          <button type="button" class="btn btn-danger" id="clearTableAndOrderBtn" title="Liberar mesa e limpar todos os pedidos dela">
+                             <i class="bi bi-x-octagon"></i> Liberar Mesa
+                         </button>
+                     </div>
+                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar Janela</button>
+                 </div>
+             </div>
+         </div>
+     </div>
+
+      <!-- Modal Recibo -->
+      <div class="modal fade" id="receiptModal" tabindex="-1" aria-labelledby="receiptModalLabel" aria-hidden="true"> <div class="modal-dialog modal-dialog-centered"> <div class="modal-content"> <div class="modal-header"> <h1 class="modal-title fs-5" id="receiptModalLabel">Conta - Mesa <span id="receiptTableNumber">--</span></h1> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body" id="receiptModalBody"> <p>Carregando...</p> </div> <div class="modal-footer justify-content-between"> <div class="form-check form-switch"> <input class="form-check-input" type="checkbox" role="switch" id="addServiceTaxCheck" checked> <label class="form-check-label small" for="addServiceTaxCheck">Incluir Taxa Serviço (10%)</label> </div> <div> <button type="button" class="btn btn-secondary print-receipt-btn" title="Imprimir Conta"> <i class="bi bi-printer"></i> Imprimir </button> <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Fechar</button> </div> </div> </div> </div> </div>
+
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

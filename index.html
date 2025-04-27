@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Mesas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Estilos específicos para a página de login */
+        body.logged-out {
+            position: relative; /* Necessário para z-index do ::before funcionar corretamente */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem !important;
+            background-color: transparent; /* Fundo do body fica transparente */
+            transition: none !important;
+            overflow: hidden; /* Evita barras de rolagem causadas pelo ::before se a imagem for maior */
+        }
+        /* Pseudo-elemento para a imagem de fundo */
+        body.logged-out::before {
+            content: '';
+            position: fixed; /* Cobre toda a tela, fixa no viewport */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Coloca atrás de todo o conteúdo */
+            background-image: url('img/restaurant_background.jpeg'); /* Caminho da sua imagem */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.3; /* Ajuste a opacidade conforme desejado (0.0 a 1.0) */
+            /* Adiciona um leve desfoque (opcional) */
+            /* filter: blur(2px); */
+        }
+        .login-container {
+            max-width: 400px;
+            width: 100%;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.25); /* Sombra mais pronunciada */
+             /* Fundo semi-transparente no modo claro para ver a imagem atrás */
+             background-color: rgba(255, 255, 255, 0.9);
+            z-index: 1; /* Garante que fique na frente do ::before */
+            border: 1px solid rgba(0, 0, 0, 0.1); /* Borda sutil */
+        }
+        .login-container h2 {
+             margin-bottom: 25px;
+             text-align: center;
+             color: var(--heading-color);
+             /* Cor do texto do título adaptável ao tema */
+             color: #333; /* Cor padrão mais escura para contraste com fundo claro/imagem */
+        }
+         body.dark-mode .login-container h2 {
+              color: var(--heading-color-dark); /* Usa a variável de cor do tema escuro */
+         }
+
+        body.logged-out .l-navbar, body.logged-out .header { display: none !important; } /* Esconde navbar e header padrão */
+        body.logged-out .content-wrapper { padding-left: 0 !important; margin-top: 0 !important; }
+        body.logged-out .theme-switch-container { position: absolute; top: 15px; right: 15px; z-index: 1000; }
+
+        /* Ajustes para modo escuro */
+        body.dark-mode .login-container {
+            /* Fundo mais escuro e semi-transparente no modo escuro */
+            background-color: rgba(var(--bs-dark-rgb), 0.85); /* Usa variável do bootstrap para cor escura */
+            border: 1px solid var(--card-border-dark); /* Usa variável de borda escura */
+        }
+        /* Ajusta opacidade do fundo no modo escuro se necessário */
+        body.dark-mode.logged-out::before {
+             opacity: 0.2; /* Pode precisar de opacidade diferente no escuro */
+        }
+        body.dark-mode .text-muted {
+             color: var(--text-muted-dark) !important; /* Garante cor correta para texto muted */
+        }
+
+
+    </style>
+</head>
+<body class="logged-out preload-transition"> <!-- Classe logged-out ativa os estilos -->
+
+    <!-- Switch de Tema (Fora do container principal) -->
+    <div class="theme-switch-container">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="darkModeSwitch" role="switch">
+            <label class="form-check-label visually-hidden" for="darkModeSwitch">Modo Escuro</label>
+             <!-- Ícones opcionais para o switch -->
+             <i class="bi bi-brightness-high-fill light-icon ms-1"></i>
+             <i class="bi bi-moon-stars-fill dark-icon ms-1"></i>
+        </div>
+    </div>
+
+    <!-- Container do Formulário de Login -->
+    <div class="login-container">
+        <h2 class="mb-4">MesaFácil</h2> <!-- Título atualizado -->
+        <form id="loginForm" action="#" method="POST" class="needs-validation" novalidate>
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" required placeholder="admin@restaurante.com">
+                <div class="invalid-feedback">Por favor, insira um email válido.</div>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Senha</label>
+                <input type="password" class="form-control" id="password" required placeholder="password">
+                <div class="invalid-feedback">Por favor, insira sua senha.</div>
+            </div>
+            <div id="form-message" class="form-message mb-3"></div>
+            <div class="d-grid gap-2 mb-3">
+                <button type="submit" class="btn btn-primary btn-lg">Entrar</button> <!-- Botão maior -->
+            </div>
+            <!-- Link de Cadastro REMOVIDO, Link Esqueci Senha ATUALIZADO -->
+            <div class="text-center">
+                <a href="forgot_password.html" class="btn btn-link">Esqueci minha senha</a>
+            </div>
+        </form>
+        <!-- Logins de Teste ATUALIZADOS -->
+        <div class="mt-4 text-center text-muted">
+             <small>Contas de teste (senha: <strong>password</strong>):<br>
+                <code>admin@restaurante.com</code> (Admin)<br>
+                <code>garcom@restaurante.com</code> (Garçom)<br>
+                <code>cozinha@restaurante.com</code> (Cozinha)
+             </small>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
