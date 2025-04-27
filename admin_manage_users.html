@@ -7,11 +7,81 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Opcional: BoxIcons para logo de exemplo na navbar -->
+    <link rel='stylesheet' href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css'>
 </head>
 <body id="body-pd" class="preload-transition">
 
-    <!-- Placeholder onde a navbar e o header serão injetados -->
-    <div id="navbar-placeholder"></div>
+    <!-- Navbar e Header INSERIDOS DIRETAMENTE -->
+    <header class="header" id="header">
+        <div class="header_toggle"> <i class="bi bi-list" id="header-toggle"></i> </div>
+        <div class="header-right-controls d-flex align-items-center">
+            <span id="loggedInUserNameDisplay" class="me-2 small"></span>
+            <div class="theme-switch-container-header ms-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="darkModeSwitchHeader" role="switch">
+                    <label class="form-check-label visually-hidden" for="darkModeSwitchHeader">Modo Escuro</label>
+                </div>
+            </div>
+            <a href="#" id="header-logout-link-mobile" class="btn btn-sm btn-outline-secondary ms-2 d-md-none" title="Sair"><i class="bi bi-box-arrow-right"></i></a>
+        </div>
+    </header>
+
+    <div class="l-navbar" id="nav-bar">
+        <nav class="nav">
+            <div> <!-- Container superior: logo, toggle, lista -->
+                <a href="admin_dashboard.html" class="nav_logo">
+                    <!-- Use a classe do BoxIcons ou outra classe de ícone -->
+                    <i class='bx bxs-layer nav_logo-icon'></i>
+                    <span class="nav_logo-name">RestauranteSys</span>
+                </a>
+                 <div class="nav_toggle" id="nav-toggle-desktop" title="Recolher/Expandir Menu">
+                    <i class="bi bi-chevron-left toggle-icon-collapse"></i>
+                    <i class="bi bi-chevron-right toggle-icon-expand"></i>
+                </div>
+                <div class="nav_list">
+                    <!-- ID: nav-dashboard - Visível para TODOS -->
+                    <a href="admin_dashboard.html" class="nav_link" data-page="admin_dashboard.html" id="nav-dashboard">
+                        <i class="bi bi-grid-fill nav_icon"></i>
+                        <span class="nav_name">Dashboard</span>
+                    </a>
+                    <!-- ID: nav-dishes - Visível para TODOS -->
+                    <a href="admin_dishes.html" class="nav_link" data-page="admin_dishes.html" id="nav-dishes">
+                        <i class="bi bi-journal-richtext nav_icon"></i>
+                        <span class="nav_name">Pratos</span>
+                    </a>
+                    <!-- ID: nav-tables - Visível para ADMIN e GARÇOM -->
+                    <a href="admin_tables.html" class="nav_link" data-page="admin_tables.html" id="nav-tables">
+                        <i class="bi bi-grid-1x2-fill nav_icon"></i>
+                        <span class="nav_name">Mesas</span>
+                    </a>
+                    <!-- ID: nav-orders - Visível para ADMIN e COZINHA -->
+                    <a href="admin_orders.html" class="nav_link" data-page="admin_orders.html" id="nav-orders">
+                        <i class="bi bi-receipt-cutoff nav_icon"></i>
+                        <span class="nav_name">Pedidos</span>
+                    </a>
+                     <!-- ID: nav-manage-users - Visível APENAS para ADMIN -->
+                     <a href="admin_manage_users.html" class="nav_link" data-page="admin_manage_users.html" id="nav-manage-users">
+                        <i class="bi bi-people-fill nav_icon"></i>
+                        <span class="nav_name">Gerenciar Usuários</span>
+                    </a>
+                     <!-- ID: nav-profile - Visível para TODOS -->
+                     <a href="admin_profile.html" class="nav_link" data-page="admin_profile.html" id="nav-profile">
+                        <i class="bi bi-person-badge-fill nav_icon"></i>
+                        <span class="nav_name">Meu Perfil</span>
+                    </a>
+                </div>
+            </div>
+             <!-- Container inferior: Logout -->
+            <div>
+                <a href="#" class="nav_link logout-link" id="logout-link">
+                    <i class="bi bi-box-arrow-left nav_icon"></i>
+                    <span class="nav_name">Sair</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+    <!-- Fim da Navbar Inserida -->
 
     <!--Container Main start-->
     <main class="content-wrapper">
