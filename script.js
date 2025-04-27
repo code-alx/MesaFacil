@@ -1,3 +1,4 @@
+
 // Variável global temporária para itens do pedido atual no modal
 let tempOrderItems = [];
 
@@ -78,12 +79,25 @@ function checkAccess() {
         kitchen: ['admin_dashboard.html', 'admin_dishes.html', 'admin_orders.html', 'admin_profile.html']
     };
 
+    // Tenta normalizar o nome da página atual (remove nome do repo se presente)
+    let normalizedCurrentPage = currentPage;
+    const pathSegments = window.location.pathname.split('/').filter(Boolean); // Divide e remove vazios
+    if (pathSegments.length > 0) {
+        normalizedCurrentPage = pathSegments[pathSegments.length - 1];
+        // Se for só o nome do repo (sem arquivo), considera como index.html
+        if (!normalizedCurrentPage.includes('.') && pathSegments.length === 1) {
+             normalizedCurrentPage = 'index.html';
+        }
+    }
+    //console.log(`Página normalizada para verificação: ${normalizedCurrentPage}`);
+
+
     // Verifica se o perfil atual tem permissão para a página atual
-    if (allowedPages[userRole] && allowedPages[userRole].includes(currentPage)) {
-        //console.log(`Acesso permitido para perfil '${userRole}' na página '${currentPage}'.`);
+    if (allowedPages[userRole] && allowedPages[userRole].includes(normalizedCurrentPage)) {
+        //console.log(`Acesso permitido para perfil '${userRole}' na página '${normalizedCurrentPage}'.`);
         return; // Permite o acesso
     } else {
-        console.warn(`Acesso BLOQUEADO para perfil '${userRole}' na página '${currentPage}'.`);
+        console.warn(`Acesso BLOQUEADO para perfil '${userRole}' na página '${normalizedCurrentPage}'.`);
         alert('Você não tem permissão para acessar esta página.');
         // Redireciona para uma página padrão (ex: dashboard) ou login
         window.location.href = 'admin_dashboard.html'; // Ou index.html se preferir
@@ -97,11 +111,27 @@ function checkAccess() {
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM carregado. Iniciando script.");
 
-    const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+    // Tenta normalizar o nome da página atual para verificação de acesso
+    let currentPageFile = 'index.html'; // Default
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    if (pathSegments.length > 0) {
+         const lastSegment = pathSegments[pathSegments.length - 1];
+         // Se o último segmento parece um nome de arquivo HTML
+         if (lastSegment.endsWith('.html')) {
+              currentPageFile = lastSegment;
+         }
+         // Se for só o nome do repo (ex: /MesaFacil/), considera index.html
+         else if (pathSegments.length === 1 && !lastSegment.includes('.')) {
+              currentPageFile = 'index.html';
+         }
+    }
+    console.log(`Página atual detectada como: ${currentPageFile}`);
+
+
     const publicPages = ['index.html', 'forgot_password.html'];
 
     // --- 1. Verificação de Acesso (SEMPRE, exceto em páginas públicas) ---
-    if (!publicPages.includes(currentPage)) {
+    if (!publicPages.includes(currentPageFile)) {
         try {
             checkAccess(); // Verifica se o usuário pode estar nesta página
         } catch (error) {
@@ -138,39 +168,44 @@ document.addEventListener('DOMContentLoaded', function() {
 // ========= FUNÇÕES PRINCIPAIS =========
 function loadNavbarAndInitializeScripts() {
     const navbarPlaceholder = document.getElementById('navbar-placeholder');
-    fetch('/MesaFacil/_navbar.html')
+
+    // ***** VOLTANDO PARA './_navbar.html' *****
+    // Este caminho assume que _navbar.html está no MESMO diretório
+    // que os arquivos HTML que o estão incluindo.
+    const navbarPath = './_navbar.html';
+    console.log(`Tentando buscar navbar em: ${navbarPath}`);
+
+    fetch(navbarPath)
         .then(response => {
-            if (!response.ok) throw new Error(`Erro ao carregar _navbar.html: ${response.statusText}`);
+            if (!response.ok) {
+                 // Se falhar, JÁ LOGA o erro detalhado
+                 console.error(`Erro ao carregar ${navbarPath}: Status ${response.status} (${response.statusText})`);
+                 // Lança o erro para ser pego pelo .catch()
+                 throw new Error(`Erro ao carregar navbar: Status ${response.status}`);
+            }
+            console.log("Navbar encontrada e resposta OK.");
             return response.text();
         })
         .then(html => {
             navbarPlaceholder.innerHTML = html;
-            console.log("Navbar HTML carregada.");
+            console.log("Navbar HTML carregada no placeholder.");
 
-            // Inicializa a lógica da navbar VISUAL (toggle, highlight)
+            // Continua com a inicialização...
             initializeNavbarLogic();
-            // Ajusta a visibilidade dos itens da navbar com base no perfil
             adjustNavbarVisibility();
-            // Inicializa a lógica do tema
             initializeThemeLogic();
-            // Inicializa a lógica de logout
             initializeLogoutLogic();
-            // Exibe o nome do usuário logado
             displayLoggedInUser();
-
-            // Inicializa a lógica específica da página ATUAL (APÓS navbar carregada)
             initializePageSpecificLogic();
 
-            // Remove a classe de pré-carregamento após tudo estar pronto
             setTimeout(() => {
                 if (document.body) document.body.classList.remove('preload-transition');
                 console.log("Preload transition removida.");
             }, 50);
         })
         .catch(error => {
-            console.error("Falha ao carregar a navbar:", error);
-            navbarPlaceholder.innerHTML = `<p class="text-danger p-3">Erro ao carregar a navegação.</p>`;
-            // Ainda remove o preload para evitar página em branco
+            console.error("Falha crítica ao carregar a navbar:", error);
+            navbarPlaceholder.innerHTML = `<p class="text-danger p-3">Erro fatal ao carregar a navegação. Verifique o caminho do arquivo e o console (F12).</p>`;
             setTimeout(() => { if(document.body) document.body.classList.remove('preload-transition'); }, 50);
         });
 }
@@ -275,18 +310,34 @@ function initializeNavbarLogic() {
 
     // Destaca o link ativo na navbar
     const linkColor = document.querySelectorAll('.nav_link');
-    const currentPath = window.location.pathname.split("/").pop();
+    // Obtem o nome do arquivo da URL atual
+    let currentPageFile = 'index.html'; // Default
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    if (pathSegments.length > 0) {
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        if (lastSegment.endsWith('.html')) {
+            currentPageFile = lastSegment;
+        } else if (pathSegments.length === 1 && !lastSegment.includes('.')) { // Caso raiz do repo
+            currentPageFile = 'index.html';
+        }
+         // Considera o caso de não ter .html (ex: /admin_dashboard)
+         else if (!lastSegment.includes('.')) {
+              currentPageFile = lastSegment + '.html'; // Tenta adicionar .html
+         }
+    }
+     console.log("Current page file for highlighting:", currentPageFile);
+
 
     linkColor.forEach(l => {
         l.classList.remove('active'); // Remove de todos primeiro
         const linkPage = l.dataset.page;
 
-        // Condição especial para dashboard (index ou admin_dashboard.html)
-        if ((currentPath === '' || currentPath === 'admin_dashboard.html') && linkPage === 'admin_dashboard.html') {
-            l.classList.add('active');
+        // Condição especial para dashboard (página raiz ou admin_dashboard.html)
+        if ((currentPageFile === 'index.html' || currentPageFile === 'admin_dashboard.html') && linkPage === 'admin_dashboard.html') {
+             l.classList.add('active');
         }
         // Condição geral para outras páginas
-        else if (linkPage === currentPath) {
+        else if (linkPage === currentPageFile) {
             l.classList.add('active');
         }
     });
@@ -425,10 +476,22 @@ function displayLoggedInUser() {
 }
 
 function initializePageSpecificLogic() {
-    const currentPage = window.location.pathname.split("/").pop() || 'index.html';
-    console.log("Inicializando lógica para página:", currentPage);
+     // Re-detecta a página atual para a lógica específica
+     let currentPageFile = 'index.html'; // Default
+     const pathSegments = window.location.pathname.split('/').filter(Boolean);
+     if (pathSegments.length > 0) {
+          const lastSegment = pathSegments[pathSegments.length - 1];
+          if (lastSegment.endsWith('.html')) {
+               currentPageFile = lastSegment;
+          } else if (pathSegments.length === 1 && !lastSegment.includes('.')) {
+               currentPageFile = 'index.html';
+          } else if (!lastSegment.includes('.')) {
+              currentPageFile = lastSegment + '.html'; // Tenta adicionar .html
+          }
+     }
+    console.log("Inicializando lógica específica para página:", currentPageFile);
 
-    switch (currentPage) {
+    switch (currentPageFile) {
         case 'admin_manage_users.html':
             initializeManageUsersPage();
             break;
@@ -453,11 +516,11 @@ function initializePageSpecificLogic() {
         case 'forgot_password.html':
             initializeForgotPasswordPage();
             break;
-        // Adicionar outros casos se houver mais páginas específicas
         default:
-            console.log(`Nenhuma lógica específica definida para a página ${currentPage}.`);
+            console.log(`Nenhuma lógica específica definida para a página ${currentPageFile}.`);
     }
 }
+
 
 // --- Lógica da Página: Meu Perfil ---
 function initializeProfilePage() {
@@ -2602,19 +2665,24 @@ function openReceiptModal(tableId, receiptModalInstance) {
                 receiptGrandTotal += receiptSubTotal * 0.10;
             }
 
-            // Adiciona o valor ao total do dia
-            dailyTotal += receiptGrandTotal;
-            // Marca a mesa como faturada hoje
-            billedTablesToday.push(tableId);
+             // Verifica se o total é positivo antes de adicionar
+             if (receiptGrandTotal > 0) {
+                  // Adiciona o valor ao total do dia
+                  dailyTotal += receiptGrandTotal;
+                  // Marca a mesa como faturada hoje
+                  billedTablesToday.push(tableId);
 
-            // Salva os dados atualizados no localStorage
-            localStorage.setItem(dailyTotalKey, dailyTotal.toString());
-            localStorage.setItem(billedTablesKey, JSON.stringify(billedTablesToday));
+                  // Salva os dados atualizados no localStorage
+                  localStorage.setItem(dailyTotalKey, dailyTotal.toString());
+                  localStorage.setItem(billedTablesKey, JSON.stringify(billedTablesToday));
 
-            console.log(`Mesa ${table.number} (ID: ${tableId}) adicionada ao faturamento de hoje. Novo total: R$ ${dailyTotal.toFixed(2)}`);
+                  console.log(`Mesa ${table.number} (ID: ${tableId}) adicionada ao faturamento de hoje (${receiptGrandTotal.toFixed(2)}). Novo total: R$ ${dailyTotal.toFixed(2)}`);
 
-            // Atualiza o card de faturamento no dashboard
-            updateFinancialReport();
+                  // Atualiza o card de faturamento no dashboard
+                  updateFinancialReport();
+             } else {
+                  console.log(`Mesa ${table.number} (ID: ${tableId}) com valor total R$0.00. Não adicionando ao faturamento diário.`);
+             }
 
         } else {
              console.log(`Mesa ${table.number} (ID: ${tableId}) já foi contabilizada no faturamento de hoje. Não adicionando novamente.`);
@@ -2967,3 +3035,4 @@ function initializeLocalStorageData() {
         console.log('LocalStorage: Pedidos FAKE inicializados.');
     }
 }
+// ========= FIM DAS FUNÇÕES =========
